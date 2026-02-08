@@ -16,6 +16,10 @@ name.cub
 
 Walls Textures
 -
+	Can be separated by one or more spaces
+	Can be set in any order (SO NO WE EA)
+	Stricly need to respect NO SO WE EA + path of texture file with one <space>
+	
 `
 NO textures/xpm_dir/file.xpm
 SO textures/xpm_dir/file.xpm
