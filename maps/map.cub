@@ -3,4 +3,5 @@ SO ./textures/south.xpm
 EA ./textures/west.xpm
 WE ./textures/east.xpm
 
-
+F 255,255,255
+C 70,70,70
