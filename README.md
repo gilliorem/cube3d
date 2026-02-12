@@ -1,4 +1,4 @@
-# cub3D
+# CUBE 3D
 this (42) project is the reproduction of wolfenstein 3D which is considered as the first FPS ever created (Doom ancestor, Quake for the youngers)
 
 *regillio 42*
@@ -14,6 +14,7 @@ So I can check the specific *first* and *second* char in every single line.
 	- Color first:
 	- Go through each line of file
 	- check for the first char of each line AND that the char next to it is a space.
+	- carefull: can have the exact same line twice: error.
 	- mark the line where I find 'F ' and the line where I find 'C '
 	- skip the first char and the whites spaces.
 	-
