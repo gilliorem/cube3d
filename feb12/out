@@ -1,0 +1,26 @@
+==811229== Memcheck, a memory error detector
+==811229== Copyright (C) 2002-2024, and GNU GPL'd, by Julian Seward et al.
+==811229== Using Valgrind-3.25.1 and LibVEX; rerun with -h for copyright info
+==811229== Command: ./cub3D ../maps/map.cub
+==811229== 
+==811229== 
+==811229== HEAP SUMMARY:
+==811229==     in use at exit: 1,025 bytes in 1 blocks
+==811229==   total heap usage: 85 allocs, 84 frees, 32,482 bytes allocated
+==811229== 
+==811229== 1,025 bytes in 1 blocks are definitely lost in loss record 1 of 1
+==811229==    at 0x4848813: malloc (vg_replace_malloc.c:446)
+==811229==    by 0x401C52: read_file_until_newline (in /home/regillio/Desktop/cube3d/feb12/cub3D)
+==811229==    by 0x401B7D: get_next_line (in /home/regillio/Desktop/cube3d/feb12/cub3D)
+==811229==    by 0x4014F6: check_color_type_id (cub3d.c:126)
+==811229==    by 0x401694: init_color_lines (cub3d.c:163)
+==811229==    by 0x401792: main (cub3d.c:307)
+==811229== 
+==811229== LEAK SUMMARY:
+==811229==    definitely lost: 1,025 bytes in 1 blocks
+==811229==    indirectly lost: 0 bytes in 0 blocks
+==811229==      possibly lost: 0 bytes in 0 blocks
+==811229==    still reachable: 0 bytes in 0 blocks
+==811229==         suppressed: 0 bytes in 0 blocks
+==811229== 
+==811229== ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)

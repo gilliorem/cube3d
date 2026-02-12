@@ -4,11 +4,10 @@ this (42) project is the reproduction of wolfenstein 3D which is considered as t
 *regillio 42*
 
 ## PARSING
-- skip the white spaces and the new lines
+- check for the first two char of each line.
 each element must begin with its type identifier (composed
 by one or two characters): SO NO WHITE SPACES AT THE BEGINING.
 So I can check the specific *first* and *second* char in every single line.
-
 
 
 	- Color first:
@@ -16,6 +15,10 @@ So I can check the specific *first* and *second* char in every single line.
 	- check for the first char of each line AND that the char next to it is a space.
 	- carefull: can have the exact same line twice: error.
 	- mark the line where I find 'F ' and the line where I find 'C '
+### Memory issue GNL
+The problem we have is that once we found the lines that correspond, we leave
+But the gnl *stash* is not being freeed. so we have allocated bytes
+	> we can read until the end of file no matter what.
 	- skip the first char and the whites spaces.
 	-
 	- check that the second string is ',' separated and has only 2 comas, that is \n terminateed

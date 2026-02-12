@@ -14,6 +14,9 @@ typedef struct s_file
 	char	*name;
 	int	fd;
 	char	*cur_line;
+	char	*color_line[2];
+	char	*floor_line;
+	char	*ceiling_line;
 	char	***textures;
 	char	**colours;
 	char	**map;
@@ -36,6 +39,12 @@ void	print_debug(char *err_msg, int n)
 	}
 	else
 		return;
+}
+
+void	free_data(void *data)
+{
+	if (data)
+		free(data);
 }
 
 int	error(char *msg)
@@ -100,15 +109,17 @@ t_file	*init_file(char *argv_one)
 
 	file = ft_calloc(1, sizeof(t_file));
 	file->fd = try_open_file(argv_one);
-	file->textures = ft_calloc(4 + 1, sizeof(char **));
+	//file->textures = ft_calloc(4 + 1, sizeof(char **));
 	return file;
 }
 
 int	check_color_type_id(t_file *file)
 {
-	bool	color_type_id[3];
+	bool	color_type_id[2];
 	int	count;
 
+	color_type_id[0] = false;
+	color_type_id[1] = false;
 	count = 0;
 	while (1)
 	{
@@ -119,24 +130,42 @@ int	check_color_type_id(t_file *file)
 		{
 			count++;
 			color_type_id[0] = true;
+			file->floor_line = ft_strdup(file->cur_line);
 		}
 		if (file->cur_line[0] == 'C' && file->cur_line[1] == ' ')
 		{
-			color_type_id[1] = true;
 			count++;
+			color_type_id[1] = true;
+			file->ceiling_line = ft_strdup(file->cur_line);
 		}
 		if (color_type_id[0] == true && color_type_id[1] == true &&
 				count == 2)
 		{
-			print_debug("Valid colors type id found.",0);
+			print_debug("Valid colors type id found.", -1);
+			free(file->cur_line);
+			while (1)
+			{
+				file->cur_line = get_next_line(file->fd);
+				if (!file->cur_line)
+					break;
+				free(file->cur_line);
+			}	
 			return (1);
 		}
+		free(file->cur_line);
 	}
 	print_debug("Invalid colors type id; count=", count);
 	return (0);
 }
 
-
+void	init_color_lines(t_file *file)
+{
+	if (check_color_type_id(file))
+	{
+		printf("%s",file->floor_line);
+		printf("%s",file->ceiling_line);
+	}
+}
 
 /*
 int	check_texture_type_id(t_file *file)
@@ -274,9 +303,14 @@ int main(int argc, char *argv[])
 	if (argc != 2 || !check_argv(argv))
 		return (error(ERR_MSG_ARGC));
 	file = init_file(argv[1]);
-	check_color_type_id(file);
+	//check_color_type_id(file);
+	init_color_lines(file);
 	//check_texture_type_id(file);
 	//check_color_type_id(file);
 	//check_xpm_extension(file, ".xpm");
+	
+	free(file->floor_line);
+	free(file->ceiling_line);
+	free(file);
 	return 0;
 }
