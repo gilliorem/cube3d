@@ -14,9 +14,11 @@ typedef struct s_file
 	char	*name;
 	int	fd;
 	char	*cur_line;
-	char	*color_line[2];
 	char	*floor_line;
 	char	*ceiling_line;
+	char	*color_lines[2];
+	char 	*color_code;
+	char	**rgb;
 	char	***textures;
 	char	**colours;
 	char	**map;
@@ -130,13 +132,15 @@ int	check_color_type_id(t_file *file)
 		{
 			count++;
 			color_type_id[0] = true;
-			file->floor_line = ft_strdup(file->cur_line);
+			//file->floor_line = ft_strdup(file->cur_line);
+			file->color_lines[0] = ft_strdup(file->cur_line);
 		}
 		if (file->cur_line[0] == 'C' && file->cur_line[1] == ' ')
 		{
 			count++;
 			color_type_id[1] = true;
-			file->ceiling_line = ft_strdup(file->cur_line);
+			//file->ceiling_line = ft_strdup(file->cur_line);
+			file->color_lines[1] = ft_strdup(file->cur_line);
 		}
 		free(file->cur_line);
 	}
@@ -149,13 +153,162 @@ int	check_color_type_id(t_file *file)
 	return (0);
 }
 
-void	init_color_lines(t_file *file)
+int	get_to_rgb(t_file *file, char *color_line)
+{
+	int	i;
+	char	*ptr;
+	int	value;
+	
+	i = 2;
+	ptr = &color_line[i];
+	while (color_line[i])
+	{
+		if (color_line[i] == ' ')
+		{
+			ptr++;
+		}
+		else
+		{
+			value = ft_atoi(ptr);
+			if (ft_isdigit(value) && value > 0)
+			{
+				file->color_code = ptr; // need 2	
+				return (1);
+			}
+			else
+			{
+				if (!ft_isdigit(value))
+					printf("is not digit\n");
+				if (value < 0)
+					printf("value < 0\n");
+				printf("%d\n", value);
+
+				print_debug("wrong number", value);
+				return (0);
+			}
+		}
+		i++;
+	}
+	return (0);
+}
+
+int	check_color_lines(t_file *file)
+{
+	int	i;
+
+	i = 0;
+	while (i < 2)
+	{
+		if (!get_to_rgb(file, file->color_lines[i]))
+			return (0);
+		i++;
+	}
+	return (1);
+}
+
+int	check_number(t_file *file)
+{
+	int	i;
+
+	i = 0;
+	while (file->color_code[i] != '\n')
+	{
+		if (!ft_isdigit(file->color_code[i]) && file->color_code[i] != ',')
+		{
+			print_debug("is not digit:", file->color_code[i]);
+			return (0);
+		}
+		i++;	
+	}
+	return (1);
+}
+
+void	split_rgb(t_file *file)
+{
+	int	i;
+
+	i = 0;
+	while (file->color_code[i])
+	{
+		if (file->color_code[i] == '\n')
+			file->color_code[i] = '\0';
+		i++;
+	}
+	file->rgb = ft_split(file->color_code, ',');
+}
+
+int	check_rgb(t_file *file)
+{
+	int	i;
+//	int	j;
+	int	len;
+	int	n_rgb;
+//	char	rgb[3];
+//	char	c;
+
+	i = 0;
+	split_rgb(file);
+	len = ft_strlen(file->rgb[i]);
+	while (file->rgb[i])
+	{
+		if (len > 3 || len < 1)
+		{
+			print_debug("rgb length:", len);
+			printf("%s\n", file->rgb[i]);
+			return (0);
+		}
+		n_rgb = ft_atoi(file->rgb[i]);
+		if (n_rgb < 0 || n_rgb > 255)
+		{
+			print_debug("color code out of range:", n_rgb);
+			return (0);
+		}
+		/*
+		j = 0;
+		if (len == 3)
+		{
+			if (c != '2' || c != '1' || c != '0')
+			{
+				print_debug("wrong rgb", -1);
+				return (0);
+			}
+			c = file->rgb[i][1];
+			if (c 
+			{
+				print_debug("wrong rgb", -1);
+				return (0);
+			}
+			c = file->rgb[i][0];
+			if (c != '2' || c != '1' || c != '0')
+			{
+				print_debug("wrong rgb", -1);
+				return (0);
+			}
+			
+			
+		}
+		*/
+		
+		i++;
+	}
+	if (i != 3)
+	{
+		print_debug("3 colors only",i);
+		return (0);
+	}
+	return (1);
+}
+
+int	init_color_lines(t_file *file)
 {
 	if (check_color_type_id(file))
 	{
-		printf("%s",file->floor_line);
-		printf("%s",file->ceiling_line);
+		//printf("%s",file->floor_line);
+		//printf("%s",file->ceiling_line);
+		return 1;
 	}
+	else
+		return 0;
 }
 
 /*
@@ -291,17 +444,22 @@ int main(int argc, char *argv[])
 {
 	t_file	*file;
 
-	//if (argc != 2 || !check_argv(argv))
-	//	return (error(ERR_MSG_ARGC));
+	if (argc != 2 || !check_argv(argv))
+		return (error(ERR_MSG_ARGC));
 	file = init_file(argv[1]);
 	//check_color_type_id(file);
-	init_color_lines(file);
+	if (!init_color_lines(file)) return 0;
+//	if (!get_to_rgb(file, file->)) return 0;
+	if (!check_color_lines(file)) return 0;
+	if (!check_number(file)) return 0;
+	if (!check_rgb(file)) return 0;
 	//check_texture_type_id(file);
 	//check_color_type_id(file);
 	//check_xpm_extension(file, ".xpm");
-	
+		
 	free(file->floor_line);
 	free(file->ceiling_line);
 	free(file);
 	return 0;
 }
+
