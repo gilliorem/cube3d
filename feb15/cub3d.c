@@ -16,9 +16,10 @@ typedef struct s_file
 	char	*cur_line;
 	char	*floor_line;
 	char	*ceiling_line;
+	int	n_color_lines;
 	char	*color_lines[2];
-	char 	*color_code;
-	char	**rgb;
+	char 	*color_code[2];
+	char	**rgb[2];
 	char	***textures;
 	char	**colours;
 	char	**map;
@@ -111,6 +112,7 @@ t_file	*init_file(char *argv_one)
 
 	file = ft_calloc(1, sizeof(t_file));
 	file->fd = try_open_file(argv_one);
+	file->n_color_lines = 2;
 	//file->textures = ft_calloc(4 + 1, sizeof(char **));
 	return file;
 }
@@ -147,9 +149,16 @@ int	check_color_type_id(t_file *file)
 	if (color_type_id[0] == true && color_type_id[1] == true && count == 2)
 	{
 		print_debug("valid colors type id.", -1);
-		return (-1);
+		return (1);
 	}
 	print_debug("Invalid colors type id; count=", count);
+	return (0);
+}
+
+int	is_rgb_range(int value)
+{
+	if (value >= 0 && value <= 255)
+		return (1);
 	return (0);
 }
 
@@ -169,132 +178,138 @@ int	get_to_rgb(t_file *file, char *color_line)
 		}
 		else
 		{
+			printf("s:%s\n", ptr);
 			value = ft_atoi(ptr);
-			if (ft_isdigit(value) && value > 0)
+			if (is_rgb_range(value))
 			{
-				file->color_code = ptr; // need 2	
-				return (1);
+				file->color_code[i] = ptr; 
 			}
 			else
 			{
-				if (!ft_isdigit(value))
-					printf("is not digit\n");
+				if (!is_rgb_range(value))
+					print_debug("is not digit", -1);
 				if (value < 0)
-					printf("value < 0\n");
-				printf("%d\n", value);
-
+					print_debug("value < 0", -1);
+				print_debug("", value);
 				print_debug("wrong number", value);
 				return (0);
 			}
 		}
 		i++;
 	}
-	return (0);
-}
-
-int	check_color_lines(t_file *file)
-{
-	int	i;
-
-	i = 0;
-	while (i < 2)
-	{
-		if (!get_to_rgb(file, file->color_lines[i]))
-			return (0);
-		i++;
-	}
+	print_debug("get to rgb ok", -1);
 	return (1);
 }
 
-int	check_number(t_file *file)
+/* call these function multiple times (2)*/
+
+int	check_color_line(t_file *file, char *color_line)
+{
+	print_debug("in check_color_line", -1);
+	if (!get_to_rgb(file, color_line))
+		return (0);
+	return (1);
+}
+
+int	check_number(t_file *file, char *color_line)
 {
 	int	i;
 
 	i = 0;
-	while (file->color_code[i] != '\n')
 	{
-		if (!ft_isdigit(file->color_code[i]) && file->color_code[i] != ',')
+		while (color_line[i] != '\n')
 		{
-			print_debug("is not digit:", file->color_code[i]);
-			return (0);
+			if (!ft_isdigit(color_line[i]) && color_line[i] != ',')
+			{
+				print_debug("is not digit:", color_line[i]);
+				return (0);
+			}
+			i++;	
 		}
-		i++;	
 	}
 	return (1);
 }
 
-void	split_rgb(t_file *file)
+int	check_rgb_lines(t_file *file)
 {
 	int	i;
 
 	i = 0;
-	while (file->color_code[i])
+	while (i < file->n_color_lines)
 	{
-		if (file->color_code[i] == '\n')
-			file->color_code[i] = '\0';
+		if (!check_color_line(file, file->color_lines[i]))
+			return (0);
 		i++;
 	}
-	file->rgb = ft_split(file->color_code, ',');
+	i = 0;
+	while (i < file->n_color_lines)
+	{
+		if(!check_number(file, file->color_lines[i]))
+			return (0);
+		i++;
+	}
+	return (1);
+}
+
+void	split_rgb(t_file *file, char *color_line)
+{
+	int	i;
+
+	i = 0;
+	while (color_line[i])
+	{
+		if (color_line[i] == '\n')
+			color_line[i] = '\0';
+		i++;
+	}
+	i = 0;
+	while (i < file->n_color_lines)
+	{
+		file->rgb[i] = ft_split(color_line, ',');
+		i++;
+	}
 }
 
 int	check_rgb(t_file *file)
 {
 	int	i;
-//	int	j;
+	int	j;
 	int	len;
 	int	n_rgb;
-//	char	rgb[3];
-//	char	c;
 
 	i = 0;
-	split_rgb(file);
-	len = ft_strlen(file->rgb[i]);
-	while (file->rgb[i])
+	while (i < file->n_color_lines)
 	{
-		if (len > 3 || len < 1)
-		{
-			print_debug("rgb length:", len);
-			printf("%s\n", file->rgb[i]);
-			return (0);
-		}
-		n_rgb = ft_atoi(file->rgb[i]);
-		if (n_rgb < 0 || n_rgb > 255)
-		{
-			print_debug("color code out of range:", n_rgb);
-			return (0);
-		}
-		/*
-		j = 0;
-		if (len == 3)
-		{
-			if (c != '2' || c != '1' || c != '0')
-			{
-				print_debug("wrong rgb", -1);
-				return (0);
-			}
-			c = file->rgb[i][1];
-			if (c 
-			{
-				print_debug("wrong rgb", -1);
-				return (0);
-			}
-			c = file->rgb[i][0];
-			if (c != '2' || c != '1' || c != '0')
-			{
-				print_debug("wrong rgb", -1);
-				return (0);
-			}
-			
-			
-		}
-		*/
-		
+		split_rgb(file, file->color_lines[i]);
 		i++;
 	}
-	if (i != 3)
+	j = 0;
+	while (j < file->n_color_lines)
 	{
-		print_debug("3 colors only",i);
-		return (0);
+		i = 0;
+		len = ft_strlen(file->rgb[j][i]);
+		while (file->rgb[j][i])
+		{
+			if (len > 3 || len < 1)
+			{
+				print_debug("error: rgb length:", len);
+				printf("%s\n", file->rgb[j][i]);
+				return (0);
+			}
+			n_rgb = ft_atoi(file->rgb[j][i]);
+			if (n_rgb < 0 || n_rgb > 255)
+			{
+				print_debug("error: color code out of range:", n_rgb);
+				return (0);
+			}
+			i++;
+		}
+		if (i != 3)
+		{
+			print_debug("3 colors only",i);
+			return (0);
+		}
+		j++;
 	}
 	return (1);
 }
@@ -450,8 +465,9 @@ int main(int argc, char *argv[])
 	//check_color_type_id(file);
 	if (!init_color_lines(file)) return 0;
 //	if (!get_to_rgb(file, file->)) return 0;
-	if (!check_color_lines(file)) return 0;
-	if (!check_number(file)) return 0;
+//	if (!check_color_lines(file)) return 0;
+//	if (!check_number(file)) return 0;
+	if (!check_rgb_lines(file)) return 0;
 	if (!check_rgb(file)) return 0;
 	//check_texture_type_id(file);
 	//check_color_type_id(file);
