@@ -162,54 +162,47 @@ int	is_rgb_range(int value)
 	return (0);
 }
 
-int	get_to_rgb(t_file *file, char *color_line)
+// skip the spaces in the color line and store the pointer to the first character that is not a <space>
+char	*extract_color_code(t_file *file, char *color_line)
 {
+	char	*substr;
+	int	start;
+	int	len;
 	int	i;
-	char	*ptr;
-	int	value;
-	
-	i = 2;
-	ptr = &color_line[i];
-	while (color_line[i])
+
+	start = 1;
+	i = 0;
+	len = 0;
+	putchar(color_line[start]);
+	while (color_line[start] == ' ')
+		start++;
+	while (color_line[i + start] != '\n')
 	{
-		if (color_line[i] == ' ')
-		{
-			ptr++;
-		}
-		else
-		{
-			printf("s:%s\n", ptr);
-			value = ft_atoi(ptr);
-			if (is_rgb_range(value))
-			{
-				file->color_code[i] = ptr; 
-			}
-			else
-			{
-				if (!is_rgb_range(value))
-					print_debug("is not digit", -1);
-				if (value < 0)
-					print_debug("value < 0", -1);
-				print_debug("", value);
-				print_debug("wrong number", value);
-				return (0);
-			}
-		}
+		len++;
 		i++;
 	}
-	print_debug("get to rgb ok", -1);
-	return (1);
+	substr = (ft_substr(color_line, start, len));
+	printf("color_code:%s\n", substr);
+	return (substr);
+}
+
+void	extract_color_codes(t_file *file)
+{
+	int	i;
+	
+	if (!check_color_type_id(file))
+		return ;
+	i = 0;
+	while (i < 2)
+	{
+		file->color_code[i] = extract_color_code(file, file->color_lines[i]);
+		i++;
+	}
+	printf("file color code:%s\n", file->color_code[0]);
+	printf("file color code:%s\n", file->color_code[1]);
 }
 
 /* call these function multiple times (2)*/
-
-int	check_color_line(t_file *file, char *color_line)
-{
-	print_debug("in check_color_line", -1);
-	if (!get_to_rgb(file, color_line))
-		return (0);
-	return (1);
-}
 
 int	check_number(t_file *file, char *color_line)
 {
@@ -235,12 +228,14 @@ int	check_rgb_lines(t_file *file)
 	int	i;
 
 	i = 0;
+	/*
 	while (i < file->n_color_lines)
 	{
 		if (!check_color_line(file, file->color_lines[i]))
 			return (0);
 		i++;
 	}
+	*/
 	i = 0;
 	while (i < file->n_color_lines)
 	{
@@ -463,7 +458,9 @@ int main(int argc, char *argv[])
 		return (error(ERR_MSG_ARGC));
 	file = init_file(argv[1]);
 	//check_color_type_id(file);
-	if (!init_color_lines(file)) return 0;
+	extract_color_codes(file);	
+	return 0;
+	//if (!init_color_lines(file)) return 0;
 //	if (!get_to_rgb(file, file->)) return 0;
 //	if (!check_color_lines(file)) return 0;
 //	if (!check_number(file)) return 0;
@@ -478,4 +475,3 @@ int main(int argc, char *argv[])
 	free(file);
 	return 0;
 }
-
