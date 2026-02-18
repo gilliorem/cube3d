@@ -3,7 +3,7 @@ NO ./textures/north.xpm
 
 
 
-F 111,255,255
+F 1,1,232
 
 
 SO ./textures/south.xpm
@@ -12,7 +12,7 @@ EA   ./textures/west.xpm
 
 
 
-C 70,1,70
+C 70,1,1
 
 
 
