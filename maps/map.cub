@@ -1,23 +1,10 @@
-NO ./textures/north.xpm
-
-
-
-
 F 1,1,232
-
-
-SO ./textures/south.xpm
-EA   ./textures/west.xpm
-
-
-
-
 C 70,1,1
 
-
-
-WE            ./textures/east.xpm
-
+NO ./textures/north.xpm
+SO ./textures/south.xpm
+EA   ../cub3d/../cub3d/textures/east.xpm
+WE            west.xpm
 
 
 001111
