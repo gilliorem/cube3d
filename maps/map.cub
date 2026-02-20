@@ -1,15 +1,32 @@
 F 1,1,232
+WE            ../textures/west.xpm
 C 70,1,1
 
-NO ./textures/north.xpm
-SO ./textures/south.xpm
-EA   ../cub3d/../cub3d/textures/east.xpm
-WE            west.xpm
+SO ../textures/south.xpm
+EA   ../textures/east.xpm
+NO ../textures/north.xpm
 
 
-001111
-110001
-1000N1
-111111
-000000
-000000
+      111111
+     1000001
+      110001
+      100001
+      100001
+     10000001
+1111110000001
+1000000000001
+1000000000001
+1000000000001
+1000000000001
+1000000000001
+100000N000001
+111111111111
+
+
+     11111
+     100001
+     100001
+     1111111
+     100001
+     100001
+     111110
