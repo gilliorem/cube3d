@@ -29,23 +29,10 @@ But the gnl *stash* is not being freeed. so we have allocated bytes
 	check for strlen (in range 1 to 3)
 	check for individual char value (range 0 to 255)
 			
-		
-
-
 	- go through each line of the file.
 	- check for the first 2 char;
 	-
 
-`
-
-
-
-
-NO ...
-
-
-
-`
 
 check that there is each element
 	TEXTURES
@@ -97,4 +84,31 @@ W   E
  SSS 
 `
 
+After parsing and checking our 2 coulours and textures, our file struct looks like this
+`
+typedef struct s_file
+{
+	char	*name;
+	int	fd;
+	char	*cur_line;
+	int	line_count_color;
+	int	n_color_lines;
+	char	*color_lines[2];
+	char 	*color_codes[2];
+	char	**rgb[2];
+	int	line_count_texture;
+	char	*texture_lines[4];
+	char	*texture_paths[4];
+	char	*texture_names[4];
+	int	textures_fds[4];
+	char	**map; // as it is in the file (with the '\n')
+}	t_file;
+`
+
+I don't think we want our map to be in the file as a `char**`
+we can have a pointer to the map object in the file
+we need to have the number of lines of the map (rows) and the
+longest line (cols)
+in the file struct it can be save as *map_lines*, and *longest_map_line* and later
+would be transfer to our map object with the attributes map.rows and map.cols;
 
