@@ -1,10 +1,19 @@
 # CUBE 3D
-this (42) project is the reproduction of wolfenstein 3D which is considered as the first FPS ever created (Doom ancestor, Quake for the youngers)
+*This project has been created as part of the 42 curriculum by regillio*
 
-*regillio 42*
+## DESCRIPTION
+this (42) project is the reproduction of wolfenstein 3D which is considered as the first FPS ever created (Doom, id software)
+
 
 ## PARSING
+### File format
+-
+name.cub
+
+- name has to be at least 1 char
+- extension has to be exactly ".cub"
 - check for the first two char of each line.
+
 each element must begin with its type identifier (composed
 by one or two characters): SO NO WHITE SPACES AT THE BEGINING.
 So I can check the specific *first* and *second* char in every single line.
@@ -18,39 +27,16 @@ So I can check the specific *first* and *second* char in every single line.
 ### Memory issue GNL
 The problem we have is that once we found the lines that correspond, we leave
 But the gnl *stash* is not being freeed. so we have allocated bytes
-	> we can read until the end of file no matter what.
+	> each time we call `gnl`, we will read until the EOF to assure that the *stash* is empty.
+	> this will prevent memory leak.
 	- skip the first char and the whites spaces.
-	-
-	- check that the second string is ',' separated and has only 2 comas, that is \n terminateed
-	- check that the second string follow this format
-		0,0,0 | 0,10,0 | 0,0,10 | 10,0,0 | 10,10,0, 10,0,10 | 100,0,10 | 100,0,0 | 100,100,10 | ... a lot (3*3) i think
+	- check that the second string is ',' separated and has only 2 comas
+	convert the rgb to an int and check the rang.
 	to check that I have a valid color code I can:
 	split on ','
-	check for strlen (in range 1 to 3)
+	check that we have exactly 3 colors.
 	check for individual char value (range 0 to 255)
-			
-	- go through each line of the file.
-	- check for the first 2 char;
-	-
-
-
-check that there is each element
-	TEXTURES
-		do a string compare on each line of the file, that checks if we have the 2-char-type-id + the path: IT has to be on the same line.
-	COLORS
-		do a string compare on each line of the file, that check if we have the 1-char-type-id + the colorcode: IT has to be on the same line.
-	MAP
 		
-check that, on one line (before the map)
-
-### format
-
-File name & format
--
-name.cub
-
-- name has to be at least 1 char
-- extension has to be exactly ".cub"
 
 Walls Textures
 -
@@ -68,8 +54,8 @@ EA textures/xpm_dir/file.xpm
 Floor and ceiling color
 -
 `
-F RRR,GGG,BBB
-C RRR,GGG,BBB
+F 123,123,123
+C 123,123,123
 `
 
 Map
@@ -83,6 +69,13 @@ W   E
 W   E
  SSS 
 `
+
+REPRESENT THE MAP
+-
+We need to have:
+- The starting line
+- The longest line (max-width)
+- The total number of lines
 
 After parsing and checking our 2 coulours and textures, our file struct looks like this
 `
@@ -111,4 +104,33 @@ we need to have the number of lines of the map (rows) and the
 longest line (cols)
 in the file struct it can be save as *map_lines*, and *longest_map_line* and later
 would be transfer to our map object with the attributes map.rows and map.cols;
+
+---
+
+### RULES
+A function that call `get_next_line` has to read the file until the last line. That function is responsible for opening the file, reading it entirely and closing it. Doing this will prevent leaking.
+
+
+## INSTRUCTIONS
+```bash
+make
+./cub3D <path/to/map.ber>
+```
+Example:
+```bash
+./cub3D maps/doom.ber
+```
+
+
+## RESOURCES
+
+### FELLOW 42 STUDENTS
+- yucchen shared with me her way of reading through the file, parsing the info and we wrapped our minds around the use of `get_next_line`, and discuss different type usage to prevent leak by either freeing the stash or reading until the end of file.
+She also help me refactor my code so I optimize the reading part by reading once, get all the info I need and use them later on.
+- Cedric gave me great insight on how I can interpret the map characters, how to allocate the map and share with me his graphics sources
+
+### READING AND DOCUMENTATION
+
+
+### VIDEO
 
