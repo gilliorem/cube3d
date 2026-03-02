@@ -121,6 +121,13 @@ Example:
 ./cub3D maps/doom.ber
 ```
 
+### GIT USAGE
+- feat: A new feature
+- fix: A bug fix
+- docs: documentation only changes
+- refactor: code change that neither add a new feiture nor a bug fix
+- test: add new test or modify existing test
+- build: change building process (Makefile, header files, src files...)
 
 ## RESOURCES
 
@@ -133,4 +140,5 @@ She also help me refactor my code so I optimize the reading part by reading once
 
 
 ### VIDEO
+
 
