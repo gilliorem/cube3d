@@ -9,6 +9,18 @@
 #define ERR_MSG_ARGC "usage: ./<cub3D> <path/to/map.cub>"
 #define DEBUG_MODE 1
 
+typedef struct s_color
+{
+	char	key[3];
+	char	value[13];
+}	t_color;
+
+typedef struct s_texture
+{
+	char	*key;
+	char	*value;
+}	t_texture;
+
 typedef struct s_map
 {
 	int	first_line;
@@ -28,20 +40,20 @@ typedef struct s_file
 	int	size;
 
 	//TODO: re-structure the file attributes
-	int	line_count_color;
-	int	n_color_lines;
-	char	*color_lines[2];
-	char 	*color_codes[2];
-	char	**rgb[2];
-	int	line_count_texture;
-	char	*texture_lines[4];
-	char	*texture_paths[4];
-	char	*texture_names[4];
-	int	textures_fds[4];
-	int	longest_map_line;
-	int	map_lines;
-	t_map	*map;
-	//char	**map; // as it is in the file (with the '\n')
+	int	line_count_color;// > make this var a tmp in the check function
+	int	n_color_lines;// > make this var a tmp in the check function
+	char	*color_lines[2];//> make this var a tmp in the check function
+	char 	*color_codes[2];//> make this var a tmp in the check function
+	char	**rgb[2];//> make this var a tmp in the check function
+	int	line_count_texture;//> make this var a tmp in the check function
+	char	*texture_lines[4];//> make this var a tmp in the check function
+	char	*texture_paths[4];//> make this var a tmp in the check function
+	char	*texture_names[4];//> make this var a tmp in the check function
+	int	textures_fds[4];//> make this var a tmp in the check function
+	int	longest_map_line;//> make this var a tmp in the check function
+	int	map_lines;//> make this var a tmp in the check function
+	t_map	*map;//> file should not point to map
+	//char	**map;// // as it is in the file (with the '\n')
 }	t_file;
 
 
@@ -209,57 +221,85 @@ void	store_file_data(t_file *file)
 
 //TODO: Remove the read file part: only check the color_type_id on
 //	the already existing file content buffer
-int	check_color_type_id(t_file *file)
+//
+//
+//	pattern
+//	F<space>\0
+//	
+//	Will check if the color type id (color key exist and contains the correct chars)
+
+// First line: first char of the file is 'F' or 'C'
+//		no new line before the type_id char
+// other lines: char before is a new line
+// 		char after is a space
+// 		char after white spaces is digit (0-9)
+// 		last char is a new line
+int	check_color_line_format(char *file_content)
 {
-	bool	color_type_id[2];
-	char	floor_color_key[3];
-	char	ceiling_color_key[3];
+	int	line_nb;
+	int	i;
+
+	line_nb = 0;
+	i = 0;
+
+	while (file_content[i])
+	{
+		if (file_content[0] == 'F' && file_content[1] == ' ')
+		if (file_content[i] == '\n')
+			line_nb++;
+		i++;
+	}
+	
+}
+
+int	check_color_type_id(char *file_content)
+{
+	bool	colors[2];
 	int	count;
 	int	i;
-	int	flag;
-	char	*ptr;
-	
-	color_type_id[0] = false;
-	color_type_id[1] = false;
-	count = 0;
 	i = 0;
-	
-	while (file->content[i])
+	count = 0;
+
+	while (file_content[i])
 	{
-		if (file->content[i] == 'F' && file->content[i + 1] == ' ')
+		if (file_content[i] == 'F' && file_content[i + 1] == ' ' && colors[0] == false)
 		{
-			ptr = &file->content[i];
+			colors[0] = true;
 			count++;
-			color_type_id[0] = true;
-			ft_memcpy(floor_color_key, ptr, 2);
-			floor_color_key[2] = '\0';
-			printf("floor color key:%s\n",floor_color_key);
-			//file->color_lines[0] = ft_strdup(file->content);
 		}
-		if (file->content[i] == 'C' && file->content[i + 1] == ' ')
+		if (file_content[i] == 'C' && file_content[i + 1] == ' ' && colors[1] == false)
 		{
-			ptr = &file->content[i];
+			colors[1] = true;
 			count++;
-			color_type_id[1] = true;
-			ft_memcpy(ceiling_color_key, ptr, 2);
-			ceiling_color_key[2] = '\0';
-			printf("ceiling color key:%s\n",ceiling_color_key);
-			//file->color_lines[1] = ft_strdup(file->content);
-		}
-		if (color_type_id[0] == true && color_type_id[1] == true && count == 2 && flag == 0)
-		{
-			//file->line_count_color = i;
-			flag = 1;
 		}
 		i++;
 	}
-	if (color_type_id[0] == true && color_type_id[1] == true && count == 2)
+	if (count != 2)
+		return (print_debug("Error. Invalid coolor types id.", count, NULL) & 0);
+	return (1);
+}
+
+int	check_color_value(char *file_content)
+{
+	int	i;
+
+	i = 0;
+	while (file_content[i])
 	{
-		//print_debug("valid colors type ID F C.\ncolor lines stored", -1, NULL);
-		//print_debug("Line of the last color found:", file->line_count_color, NULL);
-		return (1);
-	}
-	else return (print_debug("Invalid colors type id; count=", count, NULL) & 0);
+
+		i++;
+	}	
+}
+
+t_color	**init_colors(char *file_content)
+{
+	t_color	**colors;
+	colors = ft_calloc(2, sizeof(t_color));
+	ft_strlcpy(colors[0]->key, "C ", 3);
+	ft_strlcpy(colors[1]->key, "F ", 3);
+	
+
+	return colors;
 }
 
 int	check_texture_type_id(t_file *file)
@@ -979,7 +1019,7 @@ int main(int argc, char *argv[])
 	get_file_size(file);
 	store_file_data(file);
 
-	if (!check_color_type_id(file)) return 0;
+	if (!check_color_type_id(file->content)) return 0;
 
 	return 0;
 	extract_color_codes(file);	
