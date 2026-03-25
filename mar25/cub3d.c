@@ -21,10 +21,11 @@ typedef struct s_color
 
 typedef struct s_texture
 {
-	char *line; // tmp var
-	char **line_content; // tmp var
-	char	key[2];
+	char 	*line; // ignore: tmp var
+	char 	**line_content; // ignore: tmp var
+	char	id[3];
 	char	*path;
+	int	fd;
 }	t_texture;
 
 typedef struct s_map
@@ -171,6 +172,64 @@ t_file	*init_file(char *argv_one)
 	
 	printf("file init\n");
 	return file;
+}
+
+t_color init_floor(void)
+{
+	t_color floor;
+
+	floor.id = '\0';
+	floor.rgb[0] = 0;
+	floor.rgb[1] = 0;
+	floor.rgb[2] = 0;
+	return (floor);
+}
+
+t_color init_ceiling(void)
+{
+	t_color	ceiling;
+
+	ceiling.id = '\0';
+	ceiling.rgb[0] = 0;
+	ceiling.rgb[1] = 0;
+	ceiling.rgb[2] = 0;
+	return (ceiling);
+}
+
+void	init_colors(t_color color_list[2])
+{
+	t_color floor = init_floor();	
+	t_color ceiling = init_ceiling();	
+	color_list[0] = floor;
+	color_list[1] = ceiling;
+}
+
+// does it make sense to init the north id with the actual value "NO\0" straight away
+// or do we want to initialize with 0 before extracting it from the file 
+// so we can check if the str from the file is correct ?
+
+t_texture	init_north(void)
+{
+	t_texture north;
+	ft_memcpy("\0\0\0", north.id, 3);
+			
+	return north;
+}
+
+// before calling create texture, 
+// we need to validate id and path. 
+/* Small important point:
+	texture.path = path; only stores the pointer
+	that is fine if path points inside file->lines / file->content and those stay alive long enough
+*/
+t_texture	create_texture(char id[3], char *path)
+{
+	t_texture texture;
+	ft_memcpy(texture.id, id, 3);
+	//ft_memcpy(texture.path, path, ft_strlen(path));
+	texture.path = path;
+	texture.fd = -1;
+	return (texture);
 }
 
 void	get_file_size(t_file *file)
@@ -341,14 +400,14 @@ char	**split_color_value(char *color_value)
 	return (rgb);
 }
 
-void	convert_rgb(t_color color, char **rgb)
+void	convert_rgb(t_color *color, char **rgb)
 {
 	int	i;
 
 	i = 0;
 	while (rgb[i])
 	{
-		color.rgb[i] = ft_atoi (rgb[i]);
+		color->rgb[i] = ft_atoi (rgb[i]);
 		printf("%s\n", rgb[i]);
 		i++;
 	}
@@ -375,20 +434,17 @@ int	check_rgb_range(int rgb[3])
 	return (1);
 }
 
-int	process_rgb(t_color color, char *color_value)
+int	process_rgb(t_color *color, char *color_value)
 {
 	char **rgb = split_color_value(color_value);
 	if (!check_color_value(color_value))
 		return (0);
 	convert_rgb(color, rgb);
-	if (!check_rgb_range(color.rgb))
+	if (!check_rgb_range(color->rgb))
 		return (0);
 	return (1);
 }
 
-
-// or should I have an init function before that init the two color lines
-// and store them in the object itself with the attribute `color_line` ?
 
 int	check_color_attributes(t_file *file, t_color color[2])
 {
@@ -398,352 +454,81 @@ int	check_color_attributes(t_file *file, t_color color[2])
 	floor_color = process_color_line(file, 'F');
 	ceiling_color = process_color_line(file, 'C');
 
-	if (!process_rgb(color[0], floor_color))
+	if (!process_rgb(&color[0], floor_color))
 		return (0);
-	if (!process_rgb(color[1], ceiling_color))
+	if (!process_rgb(&color[1], ceiling_color))
 		return (0);
 	return (1);
 }
 
-// check color format: check for digit-only and count commas
+/* TEXTURES */
 
-/*
-char	*find_color_id(t_file *file, char color_id)
+char *identify_texture_line(char **lines, char *id)
 {
-	// check chars
-	char	*color_line;
 	int i = 0;
 
-	while (file->lines[i])
-	{
-		if (file->lines[i][0] == color_id)
-		{
-			return (1);
-		}
-		i++;
-	}
-	if (count != 2)
-		return (printf("error color key\n") & 0);
-	color->line = ft_strdup(file->lines[i]);	
-	return 1;
-}
-*/
-
-int	is_digit(char c)
-{
-	return (c >= '0' && c <= '9');
-}
-
-int	is_color_id(char *line, char id)
-{
-	int	i;
-
-	if (line[0] != id)
-		return (printf("error first char color id\n") & 0);
-	i = 1;
-	while (!is_digit(line[i]))
-	{
-		printf("LINE[i]:%c\n", line[i]);
-		if (line[i] != ' ')
-			return (printf("error color id is contains a wrong char:%c\n", line[i]) & 0);
-		i++;
-	}
-	return (1);
-}
-
-void	find_color_line(t_color *color, char **lines, char color_char)
-{
-	int	i;
-	int	j;
-
-	i = 0;
-	
-	for (int i = 0; lines[i]; i++)
-		for (int j = 0; lines[i][j]; j++)
-			printf("%c ", lines[i][j]);	
-
-	return ;
 	while (lines[i])
 	{
-		j = 0;
-		while (lines[i][j] != '\n') 
-		{
-			if (lines[i][0] == color_char)
-			{
-				printf("%s",lines[i]);
-				color->line = ft_strdup(lines[i]);
-			}
-			j++;
-		}
+		if (ft_strncmp(lines[i], id, 2) == 0)
+			return (lines[i]);
 		i++;
 	}
+	return (NULL);
 }
 
-/*
-int	check_color_value(char *file_content)
+int check_texture_line(char *line, char *id)
 {
-	int	i;
+	int i = 0;
 
-	i = 0;
-	while (file_content[i])
-	{
+	if (!line)
+		return (printf("missing texture\n") & 0);
 
+	if (ft_strncmp(line, id, 2) != 0)
+		return (printf("wrong texture id\n") & 0);
+
+	i = 2;
+	if (line[i] != ' ')
+		return (printf("missing space\n") & 0);
+
+	while (line[i] == ' ')
 		i++;
-	}	
-	return 1;
-}
-*/
 
+	if (!line[i])
+		return (printf("missing path\n") & 0);
 
-// why do I want to *not* have a pointer 
-// and keep the struct local ? color.name, color.color_value, color.rgb
-// then this function becomes 2
-// 	1. init_floor()
-// 	2. init_ceiling()
-// 		->return a t_color object.
-/*
-t_color	**init_colors(char *file_content)
-{
-	t_color	**colors;
-	colors = ft_calloc(2, sizeof(t_color));
-	ft_strcpy(colors[1].name, "Ceiling");
-	return colors;
-}
-*/
-
-t_color init_floor(void)
-{
-	t_color floor;
-
-	floor.id = 'F';
-	floor.rgb[0] = 0;
-	floor.rgb[1] = 0;
-	floor.rgb[2] = 0;
-	return (floor);
-}
-
-t_color init_ceiling(void)
-{
-	t_color	ceiling;
-
-	ceiling.id = 'C';
-	ceiling.rgb[0] = 0;
-	ceiling.rgb[1] = 0;
-	ceiling.rgb[2] = 0;
-	return (ceiling);
-}
-
-// `t_color *color_list[2]` is a pointer to a `t_color`-list of size 2, right ?
-void	init_colors(t_color color_list[2])
-{
-	t_color floor = init_floor();	
-	t_color ceiling = init_ceiling();	
-	
-	// if I do this: would floor and ceil still exist out of my init_colors() function ?
-	// 	> yes, but why ?
-	// 	> I thought floor and ceiling were local to the function ?
-	color_list[0] = floor;
-	color_list[1] = ceiling;
-}
-
-int	check_texture_type_id(t_file *file)
-{
-	bool	texture_type_id[4];
-	int	count;
-	int	i;
-	int	flag;
-
-	count = 0;
-	i = 1;
-	flag = 0;
-	while (count < 4)
-		texture_type_id[count++] = false;
-	count = 0;
-	file->fd = try_open_file(file->name);
-	while (1)
-	{
-		file->cur_line = get_next_line(file->fd);
-		if (!file->cur_line)
-			break;
-		if (file->cur_line[0] == 'N' && file->cur_line[1] == 'O' && file->cur_line[2] == ' ')
-		{
-			count++;
-			texture_type_id[0] = true;
-			file->texture_lines[0] = ft_strdup(file->cur_line);
-		}
-		if (file->cur_line[0] == 'S' && file->cur_line[1] == 'O' && file->cur_line[2] == ' ')
-		{
-			count++;
-			texture_type_id[1] = true;
-			file->texture_lines[1] = ft_strdup(file->cur_line);
-		}
-		if (file->cur_line[0] == 'E' && file->cur_line[1] == 'A' && file->cur_line[2] == ' ')
-		{
-			count++;
-			texture_type_id[2] = true;
-			file->texture_lines[2] = ft_strdup(file->cur_line);
-		}
-		if (file->cur_line[0] == 'W' && file->cur_line[1] == 'E' && file->cur_line[2] == ' ')
-		{
-			count++;
-			texture_type_id[3] = true;
-			file->texture_lines[3] = ft_strdup(file->cur_line);
-		}
-		if (texture_type_id[0] == true && texture_type_id[1] == true 
-		&& texture_type_id[2] == true && texture_type_id[3] == true 
-		&& count == 4 && flag == 0)
-		{
-			flag = 1;
-			file->line_count_texture = i;
-		}
-		i++;
-		free(file->cur_line);
-	}
-	if (texture_type_id[0] == true && texture_type_id[1] == true 
-		&& texture_type_id[2] == true && texture_type_id[3] == true 
-		&& count == 4)
-	{
-		//print_debug("valid textures type id.\ntextures lines stored", -1, NULL);
-		print_debug("Line number of last texture line:", file->line_count_texture, NULL);
-		close(file->fd);
-		return (1);
-	}
-	print_debug("Error\nInvalid textures type id; count:", count, NULL);
-	close(file->fd);
-	free_file_attributes(file);
-	return (0);
-}
-
-
-// skip the spaces in the color line and store the pointer to the first character that is not a <space>
-char	*extract_color_code(t_file *file, char *color_line)
-{
-	char	*substr;
-	int	start;
-	int	len;
-	int	i;
-
-	start = 1;
-	i = 0;
-	len = 0;
-	while (color_line[start] == ' ')
-		start++;
-	while (color_line[i + start] != '\n')
-	{
-		len++;
-		i++;
-	}
-	substr = (ft_substr(color_line, start, len));
-	//print_debug("color code:", -1, substr);
-	return (substr);
-}
-
-char	*extract_texture_path(t_file *file, char *texture_line)
-{
-	char	*texture_path;
-	int	start;
-	int	len;
-	int	i;
-
-	start = 2;
-	i = 0;
-	len = 0;
-	while (texture_line[start] == ' ')
-		start++;
-	while (texture_line[i + start] != '\n')
-	{
-		len++;
-		i++;
-	}
-	texture_path = (ft_substr(texture_line, start, len));
-	//print_debug("texture path:", -1, texture_path);
-	return (texture_path);
-}
-
-void	extract_texture_paths(t_file *file)
-{
-	int	i;
-	
-	i = 0;
-	while (i < 4)
-	{
-		file->texture_paths[i] = extract_texture_path(file, file->texture_lines[i]);
-		i++;
-	}
-}
-
-// check the filename independanlty from the extension
-// 'I am not responsible for the user's directory, I should only check for the filename' ./dir/dir/filename.xpm
-//  Separate the filename from the rest of the path: I can 'walk backwards' from the .xpm; look for the next '/' or, the '<space>' 
-//  from forward: mark the last '/' if there is one or mark the first char after the last '<space>' go until the ".xpm"
-// make a substr out of the filename 
-
-
-// simplify this function: start from the last char and go back to the extension.
-int	check_filename(char *path, char extension[4], char *texture_name)
-{
-	// jump to the last slash
-	int	i;
-	char	*filename;
-	char	*extension_ptr;
-
-	i = 0;
-	if (!ft_strchr(path, '/'))
-		filename = &path[i];
-	while (ft_strchr(&path[i], '/'))
-	{
-		filename = ft_strchr(&path[i], '/');
-		filename++;
-		i++;
-	}
-	//print_debug("filename:", -1, filename);
-	if (!check_file_extension(filename, extension))
-		return (0);
-	extension_ptr = ft_strnstr(filename, extension, ft_strlen(filename));
-	/*
-	if (ft_strncmp(extension_ptr, extension, ft_strlen(extension)) != 0)
-	{
-		extension_ptr += ft_strlen(extension_ptr);
-		extension_ptr = ft_strnstr(extension_ptr, extension, ft_strlen(extension_ptr));
-	}
-	*/
-	if (!extension_ptr)
-		return (print_debug("error, extension.", -1, NULL) & 0);
-	//print_debug("extension ptr:", -1, extension_ptr);
-
-	int ext_len = 4;
-	int name_len = ft_strlen(filename) - ext_len;
-
-	texture_name = ft_calloc(name_len + 1, sizeof(char));
-	ft_memmove(texture_name, filename, name_len);
-	//print_debug("Texture name:", -1, texture_name);
-	
-	i = 0;
-	while (texture_name[i])
-	{
-		if (ft_strchr("#%&{}\\<>*?/$!'\":@+`|= ", texture_name[i]))
-		{
-			return (print_debug("Error:invalid char in texture filename", -1, texture_name) & 0);
-		}
-		i++;
-	}
-	free(texture_name);
 	return (1);
 }
 
-int	check_filenames(t_file *file)
+char *extract_texture_path(char *line)
 {
-	int	i;
+	int i = 2;
 
-	i = 0;
-	while (i < 4)
-	{
-		if (!check_filename(file->texture_paths[i], ".xpm", file->texture_names[i]))
-			return (0);
+	while (line[i] == ' ')
 		i++;
-	}
-	return (1);
+
+	return (&line[i]);
 }
+
+t_texture	process_texture(t_file *file, char *id)
+{
+	char *line;
+	char *path;
+
+	line = identify_texture_line(file->lines, id);
+	if (!check_texture_line(line, id))
+		return (create_texture("", NULL));
+	path = extract_texture_path(line);
+	t_texture texture = create_texture(id, path);
+	return (texture);
+}
+
+// check filename was doing:
+// if there is a `/`, jump to it
+// if not filemane is the path (str passed)
+// check extension
+// check presence of special char
+
+// check filenames: checked the filenames in the 4 xpm files
 
 int	check_valid_fd(char *file_path)
 {
