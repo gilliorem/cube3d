@@ -1,9 +1,15 @@
-F 1,1,232
-C    ,70,1,1
-WE            ../textures/west.xpm
+C    70,1,1
 SO ../texturesFolder/south.xpm
-EA   ../textures/east.xpm
+WE     ../textures/west.xpm
+EA   ../textures/east.xpm 
+
+C 70,1,1
+
+W 999,67,67
+
+
 NO ../textures/north.xpm
+F 1,1,232
 
 
 

@@ -522,6 +522,18 @@ t_texture	process_texture(t_file *file, char *id)
 	return (texture);
 }
 
+void	init_textures(t_texture texture_list[4])
+{
+	int	i;
+
+	i = 0;
+	while (i < 4)
+	{
+		texture_list[i] = process_texture(file, id);
+		i++;
+	}
+}
+
 // check filename was doing:
 // if there is a `/`, jump to it
 // if not filemane is the path (str passed)

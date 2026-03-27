@@ -167,10 +167,8 @@ t_file	*init_file(char *argv_one)
 	file = ft_calloc(1, sizeof(t_file));
 	file->name = ft_strdup(argv_one);
 	file->n_color_lines = 2;
-	//file->color = ft_calloc(4 + 1, sizeof(char **));
-	//file->texture = ft_calloc(4 + 1, sizeof(char **));
 	
-	printf("file init\n");
+	//printf("file init\n");
 	return file;
 }
 
@@ -351,8 +349,10 @@ char	*process_color_line(t_file *file, char color_id)
 	
 	split_content_in_lines(file);
 	color_line = identify_color_line(file->lines, color_id);
+	if (!color_line)
+		return (NULL);
 	if (!check_color_line(color_line, color_id))
-		return (0);
+		return (NULL);
 	color_attributes = split_color_line(color_line);
 	color_value = color_attributes[1];
 	return (color_value);
@@ -444,20 +444,38 @@ int	process_rgb(t_color *color, char *color_value)
 	return (1);
 }
 
-
 int	check_color_attributes(t_file *file, t_color color[2])
 {
 	char	*floor_color;
 	char	*ceiling_color;
 
 	floor_color = process_color_line(file, 'F');
+	if (!floor_color)
+		return (printf("error processing color line\n") & 0);
 	ceiling_color = process_color_line(file, 'C');
+	if (!ceiling_color)
+		return (printf("error processing color line\n") & 0);
 
 	if (!process_rgb(&color[0], floor_color))
 		return (0);
 	if (!process_rgb(&color[1], ceiling_color))
 		return (0);
+	color[0].id = 'F';
+	color[1].id = 'C';
 	return (1);
+}
+
+void	print_color(t_color color_list[2])
+{
+	printf("%c ", color_list[0].id);
+	printf("%i,", color_list[0].rgb[0]);
+	printf("%i,", color_list[0].rgb[1]);
+	printf("%i\n", color_list[0].rgb[2]);
+
+	printf("%c ", color_list[1].id);
+	printf("%i,", color_list[1].rgb[0]);
+	printf("%i,", color_list[1].rgb[1]);
+	printf("%i\n", color_list[1].rgb[2]);
 }
 
 /* TEXTURES */
@@ -507,7 +525,7 @@ char *extract_texture_path(char *line)
 	while (line[i] == ' ')
 		i++;
 
-	printf("%s\n", &line[i]);
+	//printf("%s\n", &line[i]);
 	return (&line[i]);
 }
 
@@ -567,6 +585,17 @@ int	check_textures_fds(t_texture texture_list[4])
 	return (1);
 }
 
+void	print_textures(t_texture texture[4])
+{
+	int	i;
+
+	i = 0;
+	while (i < 4)
+	{
+		printf("%s %s\n", texture[i].id, texture[i].path);
+		i++;
+	}
+}
 
 // we can go through our file content line by line and check the lines:
 // it can be
@@ -576,7 +605,7 @@ int	check_textures_fds(t_texture texture_list[4])
 // 	- texture
 // - map line (0 1NSEW)
 
-
+/*
 int	find_endline_first_part(t_file *file)
 {
 	int	end;
@@ -595,7 +624,13 @@ int	is_map_char(char c)
 	else
 		return (print_debug("Error. char is not part of the map charset", -1, NULL) & 0);
 }
+*/
 
+// check file-line content
+
+
+
+/*
 int	find_map_first_line(t_file *file)
 {
 	int	first_line;
@@ -762,6 +797,7 @@ t_map	*init_map(t_file *file)
 	}
 	return (map);
 }
+*/
 
 void	check_for_all_char(t_map *map)
 {
@@ -968,6 +1004,8 @@ int main(int argc, char *argv[])
 	init_colors(color_list);
 	if (!check_color_attributes(file, color_list))
 		return (0);
+	print_color(color_list);
 	t_texture texture_list[4];
 	init_textures(texture_list, file);	
+	print_textures(texture_list);
 }
