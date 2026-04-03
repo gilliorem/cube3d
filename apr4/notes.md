@@ -1,3 +1,10 @@
+## FIX Segfault
+-> I need to store the lines into the file attribute as I use gnl: because I want `file->lines to contain the \n`
+-> alloc mem for `**lines`
+-> fill the each line as we go through our gnl
+
+	-> Re run classify lines with file->lines
+
 ### Config
 Instead of having bool for each config attribute,
 I can have a pointer to each of the config object (color and texture)
@@ -14,3 +21,4 @@ and texture to be created *once*.
 then config will just point to that address.
 
 If I use actual copy I will use the initiate values.
+
