@@ -6,6 +6,9 @@ this (42) project is the reproduction of wolfenstein 3D which is considered as t
 
 
 ## PARSING
+I've done 3 type of parsings.
+
+
 ### File format
 -
 name.cub
