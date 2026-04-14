@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include "../libft/libft.h"
+#include "./libft/libft.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -45,6 +45,12 @@ typedef struct s_config
 	t_texture	*south;
 	t_texture	*east;
 	t_texture	*west;
+	int		has_floor;
+	int		has_ceiling;
+	int		has_north;
+	int		has_south;
+	int		has_east;
+	int		has_west;
 	int		count;
 	int		color_count;
 	int		text_count;
@@ -101,7 +107,12 @@ typedef struct s_file
 
 
 char	*get_color_value(char *color_line, char color_id);
+char	get_color_id(char *line);
+int	check_map_line(char *map_line);
 t_texture	process_texture(t_file *file, char *id);
+t_texture	process_texture_line(char *line);
+int	check_texture_path(char *path);
+int	get_rgb_component(char *color_value, int index);
 void	free_color_lines(char *color_lines[]);
 void	free_color_codes(int n, char *color_codes[]);
 void	free_rgbs(char **rgb[]);
@@ -150,13 +161,6 @@ int	print_error(char *msg)
 	return (0);
 }
 
-int	check_first_arg(char *argv_zero)
-{
-	if (ft_strncmp(argv_zero, "./cub3D", ft_strlen("./cub3D")) != 0)
-		return 0;
-	return 1;
-}
-
 int	check_file_extension(char *filename, char extension[4])
 {
 	int	len; 
@@ -177,9 +181,9 @@ int	check_file_extension(char *filename, char extension[4])
 
 int	check_argv(char *argv[])
 {
-	if (!check_first_arg(argv[0]) ||
-		!check_file_extension(argv[1], ".cub"))
-		return (0);
+	(void)argv[0];
+	if (!check_file_extension(argv[1], ".cub"))
+			return (0);
 	return (1);
 }
 
@@ -243,6 +247,12 @@ t_config	init_config()
 	config.south = NULL;
 	config.east = NULL;
 	config.west = NULL;
+	config.has_floor = 0;
+	config.has_ceiling = 0;
+	config.has_north = 0;
+	config.has_south = 0;
+	config.has_east = 0;
+	config.has_west = 0;
 	config.map_height = 0;
 	config.count = 0;
 	config.color_count = 0;
@@ -296,6 +306,76 @@ void	print_line_type(t_file *file)
 	}
 }
 
+int	config_is_complete(t_config *config)
+{
+	if (config->color_count == 2 && config->text_count == 4)
+		return (1);
+	return (0);
+}
+
+int	register_color_id(t_config *config, char color_id)
+{
+	if (color_id == 'F')
+	{
+		if (config->has_floor)
+			return (print_debug("duplicate floor color", -1, NULL) & 0);
+		config->has_floor = 1;
+	}
+	else if (color_id == 'C')
+	{
+		if (config->has_ceiling)
+			return (print_debug("duplicate ceiling color", -1, NULL) & 0);
+		config->has_ceiling = 1;
+	}
+	else
+		return (print_debug("invalid color id", -1, NULL) & 0);
+	config->color_count++;
+	config->count++;
+	return (1);
+}
+
+int	register_texture_id(t_config *config, char texture_id[3])
+{
+	if (ft_strncmp(texture_id, "NO", 2) == 0)
+	{
+		if (config->has_north)
+			return (print_debug("duplicate north texture", -1, NULL) & 0);
+		config->has_north = 1;
+	}
+	else if (ft_strncmp(texture_id, "SO", 2) == 0)
+	{
+		if (config->has_south)
+			return (print_debug("duplicate south texture", -1, NULL) & 0);
+		config->has_south = 1;
+	}
+	else if (ft_strncmp(texture_id, "EA", 2) == 0)
+	{
+		if (config->has_east)
+			return (print_debug("duplicate east texture", -1, NULL) & 0);
+		config->has_east = 1;
+	}
+	else if (ft_strncmp(texture_id, "WE", 2) == 0)
+	{
+		if (config->has_west)
+			return (print_debug("duplicate west texture", -1, NULL) & 0);
+		config->has_west = 1;
+	}
+	else
+		return (print_debug("invalid texture id", -1, NULL) & 0);
+	config->text_count++;
+	config->count++;
+	return (1);
+}
+
+char	*skip_leading_spaces(char *line)
+{
+	if (!line)
+		return (NULL);
+	while (*line == ' ')
+		line++;
+	return (line);
+}
+
 // I need to have 6 config lines
 // 	2 color
 // 	4 textures
@@ -308,6 +388,8 @@ int	parse_lines(t_file *file, t_config *config)
 	enum	e_state file_state;
 	enum	e_line_type line_type;
 	int	i;
+	char	*cur_line;
+	t_texture	texture;
 	char	texture_id[3];
 	texture_id[2] = '\0';
 
@@ -315,64 +397,68 @@ int	parse_lines(t_file *file, t_config *config)
 	file_state = CONFIG;
 	while (file->lines[i])
 	{
-		line_type = classify_line(file->lines[i]);
-		while (file_state == CONFIG)
+		cur_line = skip_leading_spaces(file->lines[i]);
+		line_type = classify_line(cur_line);
+		if (file_state == CONFIG)
 		{
-			line_type = classify_line(file->lines[i]);
 			if (line_type == EMPTY)
 			{
-				//printf("empty line\n");
 				i++;
 				continue;
 			}
 			if (line_type == COLOR)
 			{
-				parse_color(file, file->lines[i], config);
-				config->color_count++;
-				printf("color line:%s\n",file->lines[i]);
+				if (!parse_color(file, cur_line, config))
+					return (0);
+				if (!register_color_id(config, get_color_id(cur_line)))
+					return (0);
+				printf("color line:%s\n", cur_line);
 				i++;
 				continue;
 			}
 			if (line_type == TEXTURE)
 			{
-				process_texture(file, ft_memcpy(texture_id, file->lines[i], 3));
-				//printf("texture line\n");
+				ft_memcpy(texture_id, cur_line, 2);
+				texture_id[2] = '\0';
+				if (!register_texture_id(config, texture_id))
+					return (0);
+				texture = process_texture_line(cur_line);
+				if (!texture.path)
+					return (0);
 				i++;
 				continue;
 			}
 			if (line_type == MAP)
 			{
+				if (!config_is_complete(config))
+					return (print_debug("map started before 6 config elements",
+							config->count, NULL) & 0);
 				file_state = IN_MAP;
-				//printf("first map line>>>:%s",file->lines[i]);
 				config->map_start = i;
 				config->map_height++;
-				// parse_map_line()
-
-				//printf("first map line\n");
 				i++;
 				continue;
 			}
 			if (line_type == INVALID)
-			{
-				return (printf("INVALID LINE:%s \n",file->lines[i]) & 0);
-			}
+				return (printf("INVALID LINE:%s \n", file->lines[i]) & 0);
 		}
 		if (line_type != MAP)
 		{
 			printf("Error. not a map line\n");
 			return 0;
 		}
-		else if (line_type == INVALID)
+		else
 		{
-			return (printf("INVALID LINE\n") & 0);
-		}
-		else 
-		{
-			//printf("map line\n");
+			if (!check_map_line(cur_line))
+				return (0);
 			config->map_height++;
 		}
 		i++;
 	}
+	if (!config_is_complete(config))
+		return (print_debug("missing config elements at EOF", config->count, NULL) & 0);
+	if (config->map_height == 0)
+		return (print_debug("missing map block", -1, NULL) & 0);
 	return (1);
 }
 
@@ -452,23 +538,6 @@ void	print_file_lines(t_file *file)
 
 /* COLOR */
 
-	/* COLOR LINE */
-char	*identify_color_line(char **line, char color_id)
-{
-	int	i;
-
-	i = 0;
-	while (line[i])
-	{
-		if (line[i][0] == color_id)
-		{
-			return (line[i]);
-		}
-		i++;
-	}
-	return (NULL);
-}
-
 void	trim_new_line(char *line)
 {
 	int	i;
@@ -489,60 +558,51 @@ int	check_color_line(char *color_line, char color_id)
 {
 	int	i;
 
-	trim_new_line(color_line);
-
 	if (!color_line)
 		return (printf("error: missing color_line\n") & 0);
 	if (color_line[0] != color_id)
 		return (printf("error: wrong color id\n") & 0);
 	i = 1;
-	printf("2nd char:%c\n",color_line[i]);
 	if (color_line[i] != ' ')
 		return (printf("error: missing space after color id\n") & 0);
 	while (color_line[i] == ' ')
 		i++;
 	if (!color_line[i])
 		return (printf("error: missing color value\n") & 0);
-	while (color_line[i])
+	while (color_line[i] && color_line[i] != ' ' && color_line[i] != '\n')
 	{
 		if (!ft_strchr("0123456789,", color_line[i]))
 			return (printf("error: invalid char in color value:%c\n",color_line[i]) & 0);
 		i++;
 	}
+	while (color_line[i] == ' ')
+		i++;
+	if (color_line[i] != '\0' && color_line[i] != '\n')
+		return (printf("error: invalid trailing chars in color line\n") & 0);
 	return (1);
 }
-	/* END OF COLOR LINE*/
+		/* END OF COLOR LINE*/
 
-char	**split_color_line(char *line)
+char	*get_color_value(char *color_line, char color_id)
 {
 	int	i;
-	char	**split_line;
+	int	start;
+	int	end;
+	char	*color_value;
 
-	if (!line)
+	(void)color_id;
+	if (!color_line)
 		return (NULL);
-	split_line = ft_split(line, ' ');
-	i = 0;
-	while (split_line[i])
-	{
+	i = 1;
+	while (color_line[i] == ' ')
 		i++;
-	}
-	if (i != 2)
-	{
-		printf("Error to exactly one id and one color value\n");
+	start = i;
+	while (color_line[i] && color_line[i] != ' ' && color_line[i] != '\n')
+		i++;
+	end = i;
+	color_value = ft_substr(color_line, start, end - start);
+	if (!color_value)
 		return (NULL);
-	}
-	return (split_line);
-}
-
-	/* COLOR ATTRIBUTE[1]: COLOR VALUE (255,255,255)*/	
-
-char *get_color_value(char *color_line, char color_id)
-{
-	char *color_value; 
-	char **color_attributes;
-
-	color_attributes = split_color_line(color_line);
-	color_value = color_attributes[1];
 	return (color_value);
 }
 
@@ -575,49 +635,62 @@ char	**get_rgbs(char *color_value)
 	rgb = ft_split(color_value, ',');
 	while (rgb[i])
 	{
+		if (rgb[i][0] == '\0')
+		{
+			printf("error: rgb format\n");
+			return (NULL);
+		}
 		if (ft_strlen(rgb[i]) > 3)
 		{
-			printf("error: rgb format");
+			printf("error: rgb format\n");
 			return (NULL);
 		}
 		i++;
 	}
-	if (i > 3)
+	if (i != 3)
 	{
-		printf("error: rgb format, i:%d\n",i);
+		printf("error: rgb format, i:%d\n", i);
 		return (NULL);
 	}
 	return (rgb);
 }
 
-int	get_red(char color_id, char *color_value)
+int	get_rgb_component(char *color_value, int index)
 {
-	int	r;
+	int		value;
 	char	**rgbs;
+	int		i;
 
 	rgbs = get_rgbs(color_value);
-	r = ft_atoi(rgbs[0]);
-	return (r);
+	if (!rgbs)
+		return (-1);
+	value = ft_atoi(rgbs[index]);
+	i = 0;
+	while (rgbs[i])
+	{
+		free(rgbs[i]);
+		i++;
+	}
+	free(rgbs);
+	return (value);
+}
+
+int	get_red(char color_id, char *color_value)
+{
+	(void)color_id;
+	return (get_rgb_component(color_value, 0));
 }
 
 int	get_green(char color_id, char *color_value)
 {
-	int	g;
-	char	**rgbs;
-
-	rgbs = get_rgbs(color_value);
-	g = ft_atoi(rgbs[1]);
-	return (g);
+	(void)color_id;
+	return (get_rgb_component(color_value, 1));
 }
 
 int	get_blue(char color_id, char *color_value)
 {
-	int	b;
-	char	**rgbs;
-
-	rgbs = get_rgbs(color_value);
-	b = ft_atoi(rgbs[2]);
-	return (b);
+	(void)color_id;
+	return (get_rgb_component(color_value, 2));
 }
 
 int	is_rgb_range(int value)
@@ -670,21 +743,20 @@ int	check_color_attributes(t_file *file, t_color *floor, t_color *ceil)
 }
 */
 
-int	check_color(t_file *file, t_config *config, char color_id)
+int	check_color(char *cur_line, char color_id)
 {
-	char	*color_line;
 	char	*color_value;
-	char	**rgbs;
 
-	color_line = identify_color_line(file->lines, color_id);
-	if (!check_color_line(color_line, color_id))
+	if (!check_color_line(cur_line, color_id))
 		return (printf("Error in color line\n") & 0);
-	color_value = get_color_value(color_line, color_id);
+	color_value = get_color_value(cur_line, color_id);
+	if (!color_value)
+		return (printf("Error extracting color value\n") & 0);
 	if (!check_color_value(color_value))
-		return (printf("Error in color value\n") & 0);
-	rgbs = get_rgbs(color_value);
+		return (free(color_value), printf("Error in color value\n") & 0);
 	if (!check_rgbs(color_id, color_value))
-		return (printf("Error in RGB value\n") & 0);
+		return (free(color_value), printf("Error in RGB value\n") & 0);
+	free(color_value);
 	return (1);
 }
 
@@ -704,6 +776,8 @@ void	store_color_attributes(char *cur_line, t_color *color, char id)
 	char	*color_value;
 
 	color_value = get_color_value(cur_line, id);
+	if (!color_value)
+		return ;
 	if (id == 'F')
 	{
 		color->id = 'F';
@@ -718,6 +792,7 @@ void	store_color_attributes(char *cur_line, t_color *color, char id)
 		color->rgb[1] = get_green('C', color_value);
 		color->rgb[2] = get_blue('C', color_value);
 	}
+	free(color_value);
 }
 
 // now that colors are checked, need their attributes
@@ -726,8 +801,9 @@ int	parse_color(t_file *file, char *cur_line, t_config *config)
 {
 	char	color_id;
 
+	(void)file;
 	color_id = get_color_id(cur_line);
-	if (!check_color(file, config, color_id))
+	if (!check_color(cur_line, color_id))
 		return 0;
 	if (color_id == 'C')
 		store_color_attributes(cur_line, &config->ceiling, 'C');
@@ -759,11 +835,13 @@ void	print_color(t_color *floor, t_color *ceil)
 char *identify_texture_line(char **lines, char *id)
 {
 	int i = 0;
+	char *line;
 
 	while (lines[i])
 	{
-		if (ft_strncmp(lines[i], id, 2) == 0)
-			return (lines[i]);
+		line = skip_leading_spaces(lines[i]);
+		if (ft_strncmp(line, id, 2) == 0)
+			return (line);
 		i++;
 	}
 	return (NULL);
@@ -794,28 +872,50 @@ int check_texture_line(char *line, char *id)
 	return (1);
 }
 
-char *extract_texture_path(char *line)
+char	*extract_texture_path(char *line)
 {
-	int i = 2;
+	int		i;
+	int		start;
+	int		end;
 
+	i = 2;
 	while (line[i] == ' ')
 		i++;
-
-	//printf("%s\n", &line[i]);
-	return (&line[i]);
+	start = i;
+	while (line[i] && line[i] != '\n' && line[i] != ' ')
+		i++;
+	end = i;
+	return (ft_substr(line, start, end - start));
 }
 
 t_texture	process_texture(t_file *file, char *id)
 {
-	char *line;
-	char *path;
+	char	*line;
 
 	line = identify_texture_line(file->lines, id);
+	if (!line)
+		return (create_texture("", NULL));
+	return (process_texture_line(line));
+}
+
+t_texture	process_texture_line(char *line)
+{
+	char	id[3];
+	char	*path;
+
+	ft_memcpy(id, line, 2);
+	id[2] = '\0';
 	if (!check_texture_line(line, id))
 		return (create_texture("", NULL));
 	path = extract_texture_path(line);
-	t_texture texture = create_texture(id, path);
-	return (texture);
+	if (!path)
+		return (create_texture("", NULL));
+	if (!check_texture_path(path))
+	{
+		free(path);
+		return (create_texture("", NULL));
+	}
+	return (create_texture(id, path));
 }
 
 void	init_textures(t_texture texture_list[4], t_file *file)
@@ -845,6 +945,33 @@ int	check_valid_fd(char *file_path)
 	}
 	close(fd);
 	return (1);
+}
+
+int	check_texture_path(char *path)
+{
+	struct stat	path_stat;
+
+	if (!path || path[0] == '\0')
+		return (print_debug("missing texture path", -1, NULL) & 0);
+	if (!check_file_extension(path, ".xpm"))
+		return (print_debug("texture is not .xpm", -1, path) & 0);
+	if (stat(path, &path_stat) == -1)
+		return (print_debug("texture path stat failed", -1, path) & 0);
+	if (S_ISDIR(path_stat.st_mode))
+		return (print_debug("texture path is a directory", -1, path) & 0);
+	if (!check_valid_fd(path))
+		return (0);
+	return (1);
+}
+
+int	get_line_len_no_newline(char *line)
+{
+	int	len;
+
+	len = 0;
+	while (line[len] && line[len] != '\n')
+		len++;
+	return (len);
 }
 
 int	check_textures_fds(t_texture texture_list[4])
@@ -959,23 +1086,17 @@ int	get_map_width(t_file *file, t_config *config)
 {
 	int	max_width;
 	int	i;
-	int	j;
+	int	line_len;
 
-	i = 0;
-	j = 0;
-	i+= config->map_start;
-	printf("map starts at line:%d\n",i);
-	while (file->lines[i])
+	i = config->map_start;
+	max_width = 0;
+	while (i < config->map_start + config->map_height)
 	{
-		j = 0;
-		while (file->lines[i][j])
-			j++;
-		max_width = j - 1;
-		if (j > max_width)
-			max_width = j - 1;
+		line_len = get_line_len_no_newline(file->lines[i]);
+		if (line_len > max_width)
+			max_width = line_len;
 		i++;
 	}
-	printf("max width of the map is %d\n", max_width);
 	return (max_width);
 }
 
@@ -987,7 +1108,7 @@ void	init_map_matrix(t_map *map)
 	map->matrix = (char **) ft_calloc(map->height + 1, sizeof(char *));
 	while (i < map->height)
 	{
-		map->matrix[i] = (char *) ft_calloc(map->width + 1, sizeof(char *));
+		map->matrix[i] = (char *) ft_calloc(map->width + 1, sizeof(char));
 		ft_memset(map->matrix[i], ' ', map->width);
 		i++;
 	}
@@ -997,7 +1118,6 @@ void	init_map_matrix(t_map *map)
 t_map *init_map(t_file *file, t_config *config)
 {
 	t_map *map;
-	int	i;
 
 	map = ft_calloc(1, sizeof(t_map));
 	map->first_line = config->map_start;
@@ -1009,7 +1129,6 @@ t_map *init_map(t_file *file, t_config *config)
 	map->player_x = 0;
 	map->player_y = 0;
 	map->player_dir = 0;
-	i = 0;
 	return (map);		
 }
 
@@ -1153,20 +1272,21 @@ void	free_file_attributes(t_file *file) // the caller that's gonna call every fr
 int main(int argc, char *argv[])
 {
 	t_file	*file;
+	t_map	*map;
+	t_texture texture_list[4];
+	t_config config;
 
 	if (argc != 2 || !check_argv(argv))
 		return (print_error(ERR_MSG_ARGC));
 	file = init_file(argv[1]);
 	get_file_size(file);
 	get_file_lines(file);
-
-	t_config config;
 	config = init_config();
-	parse_lines(file, &config);
-	return 0;
-	t_map *map = init_map(file, &config);
+	if (!parse_lines(file, &config))
+		return (1);
+	map = init_map(file, &config);
 	fill_map_matrix(map, &config, file);
-	t_texture texture_list[4];
 	init_textures(texture_list, file);	
 	print_textures(texture_list);
+	return (0);
 }
