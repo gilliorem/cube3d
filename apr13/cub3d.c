@@ -113,6 +113,12 @@ t_texture	process_texture(t_file *file, char *id);
 t_texture	process_texture_line(char *line);
 int	check_texture_path(char *path);
 int	get_rgb_component(char *color_value, int index);
+int	is_player_char(char c);
+int	validate_player(t_map *map);
+int	is_walkable_char(char c);
+int	validate_map_size(t_map *map);
+int	flood_fill_player_area(t_map *map, char *visited, int y, int x);
+int	validate_map_enclosure(t_map *map);
 void	free_color_lines(char *color_lines[]);
 void	free_color_codes(int n, char *color_codes[]);
 void	free_rgbs(char **rgb[]);
@@ -264,7 +270,7 @@ enum	e_line_type classify_line(char *line)
 {
 	if (!line)
 		return (INVALID);
-	if (line[0] == '\n')	
+	if (line[0] == '\0' || line[0] == '\n')	
 		return (EMPTY);
 	else if (line[0] == 'F' || line[0] == 'C')
 		return (COLOR);
@@ -272,8 +278,8 @@ enum	e_line_type classify_line(char *line)
 	|| (line[0] == 'E' && line[1] == 'A')
 	|| (line[0] == 'W' && line[1] == 'E')
 	|| (line[0] == 'S' && line[1] == 'O'))
-	return (TEXTURE);
-	else if (line[0] == ' ' || line[0] == '1')
+		return (TEXTURE);
+	else if (ft_strchr("01NSEW", line[0]))
 		return (MAP);
 	else
 		return (INVALID);
@@ -416,44 +422,41 @@ int	parse_lines(t_file *file, t_config *config)
 				i++;
 				continue;
 			}
-			if (line_type == TEXTURE)
+				if (line_type == TEXTURE)
+				{
+					ft_memcpy(texture_id, cur_line, 2);
+					texture_id[2] = '\0';
+					if (!register_texture_id(config, texture_id))
+						return (0);
+					texture = process_texture_line(cur_line);
+					if (!texture.path)
+						return (0);
+					free(texture.path);
+					i++;
+					continue;
+				}
+			if (!config_is_complete(config))
+				return (print_debug("map started before 6 config elements",
+						config->count, NULL) & 0);
+			file_state = IN_MAP;
+			config->map_start = i;
+		}
+		if (!check_map_line(cur_line))
+			return (0);
+		config->map_height++;
+		i++;
+		if (file_state == IN_MAP)
+		{
+			while (file->lines[i])
 			{
-				ft_memcpy(texture_id, cur_line, 2);
-				texture_id[2] = '\0';
-				if (!register_texture_id(config, texture_id))
+				cur_line = skip_leading_spaces(file->lines[i]);
+				if (!check_map_line(cur_line))
 					return (0);
-				texture = process_texture_line(cur_line);
-				if (!texture.path)
-					return (0);
-				i++;
-				continue;
-			}
-			if (line_type == MAP)
-			{
-				if (!config_is_complete(config))
-					return (print_debug("map started before 6 config elements",
-							config->count, NULL) & 0);
-				file_state = IN_MAP;
-				config->map_start = i;
 				config->map_height++;
 				i++;
-				continue;
 			}
-			if (line_type == INVALID)
-				return (printf("INVALID LINE:%s \n", file->lines[i]) & 0);
+			break ;
 		}
-		if (line_type != MAP)
-		{
-			printf("Error. not a map line\n");
-			return 0;
-		}
-		else
-		{
-			if (!check_map_line(cur_line))
-				return (0);
-			config->map_height++;
-		}
-		i++;
 	}
 	if (!config_is_complete(config))
 		return (print_debug("missing config elements at EOF", config->count, NULL) & 0);
@@ -1068,17 +1071,38 @@ int	check_map_line(char *map_line)
 		printf("error: find empty line in map.\n");
 		return (0);
 	}
-	if (ft_strchr(map_line, '\n'))
-		trim_new_line(map_line);
-	while (map_line[i])
+	while (map_line[i] && map_line[i] != '\n')
 	{
-		if (!ft_strchr(" 01NSEW\n", map_line[i]))
+		if (!ft_strchr(" 01NSEW", map_line[i]))
 		{
 			printf("invalid char in map\n");
 			return (0);
 		}
 		i++;
 	}
+	if (map_line[i] == '\n' && map_line[i + 1] != '\0')
+		return (printf("invalid char after map newline\n") & 0);
+	return (1);
+}
+
+int	is_player_char(char c)
+{
+	if (c == 'N' || c == 'S' || c == 'E' || c == 'W')
+		return (1);
+	return (0);
+}
+
+int	is_walkable_char(char c)
+{
+	if (c == '0' || is_player_char(c))
+		return (1);
+	return (0);
+}
+
+int	validate_map_size(t_map *map)
+{
+	if (map->height < 3 || map->width < 3)
+		return (print_debug("map too small", -1, NULL) & 0);
 	return (1);
 }
 
@@ -1155,12 +1179,90 @@ void	fill_map_matrix(t_map *map, t_config *config, t_file *file)
 	}
 }
 
+int	validate_player(t_map *map)
+{
+	int	i;
+	int	j;
+	int	player_count;
+
+	i = 0;
+	player_count = 0;
+	while (i < map->height)
+	{
+		j = 0;
+		while (j < map->width)
+		{
+			if (is_player_char(map->matrix[i][j]))
+			{
+				player_count++;
+				map->player_y = i;
+				map->player_x = j;
+				map->player_dir = map->matrix[i][j];
+				if (i == 0 || i == map->height - 1 || j == 0 || j == map->width - 1)
+					return (print_debug("player on map edge", -1, NULL) & 0);
+			}
+			j++;
+		}
+		i++;
+	}
+	if (player_count == 0)
+		return (print_debug("missing player", -1, NULL) & 0);
+	if (player_count > 1)
+		return (print_debug("multiple players", player_count, NULL) & 0);
+	return (1);
+}
+
+int	flood_fill_player_area(t_map *map, char *visited, int y, int x)
+{
+	int	index;
+
+	if (y < 0 || y >= map->height || x < 0 || x >= map->width)
+		return (0);
+	if (map->matrix[y][x] == ' ')
+		return (0);
+	if (!is_walkable_char(map->matrix[y][x]))
+		return (1);
+	index = y * map->width + x;
+	if (visited[index])
+		return (1);
+	visited[index] = 1;
+	if (!flood_fill_player_area(map, visited, y - 1, x))
+		return (0);
+	if (!flood_fill_player_area(map, visited, y + 1, x))
+		return (0);
+	if (!flood_fill_player_area(map, visited, y, x - 1))
+		return (0);
+	if (!flood_fill_player_area(map, visited, y, x + 1))
+		return (0);
+	return (1);
+}
+
+int	validate_map_enclosure(t_map *map)
+{
+	char	*visited;
+	int		is_closed;
+
+	visited = ft_calloc(map->height * map->width, sizeof(char));
+	if (!visited)
+		return (print_debug("visited alloc failed", -1, NULL) & 0);
+	is_closed = flood_fill_player_area(map, visited, map->player_y, map->player_x);
+	free(visited);
+	if (!is_closed)
+		return (print_debug("player area open to void", -1, NULL) & 0);
+	return (1);
+}
+
 void	free_file_lines(char **lines)
 {
 	int	i;
 
-	if (!lines || !lines[0])
+	if (!lines)
 		return ;
+	if (!lines[0])
+	{
+		free(lines);
+		return ;
+	}
 	i = 0;
 	while (lines[i])
 	{
@@ -1255,15 +1357,42 @@ void	free_texture_names(char *texture_names[])
 	}
 }
 
+void	free_map_data(t_map *map)
+{
+	int	i;
+
+	if (!map)
+		return ;
+	if (map->matrix)
+	{
+		i = 0;
+		while (i < map->height)
+		{
+			free(map->matrix[i]);
+			i++;
+		}
+		free(map->matrix);
+	}
+	free(map);
+}
+
+void	free_texture_list(t_texture texture_list[4])
+{
+	int	i;
+
+	i = 0;
+	while (i < 4)
+	{
+		if (texture_list[i].path)
+			free(texture_list[i].path);
+		i++;
+	}
+}
+
 void	free_file_attributes(t_file *file) // the caller that's gonna call every free func
 {
-	free_color_lines(file->color_lines);
-	free_color_codes(file->n_color_lines, file->color_codes);
-	free_rgbs(file->rgb);
-	free_texture_lines(file->texture_lines);
-	free_texture_paths(file->texture_paths);
-	free_texture_paths(file->texture_names);
-
+	if (!file)
+		return ;
 	free_file_lines(file->lines);
 	free(file->name);
 	free(file);
@@ -1273,20 +1402,40 @@ int main(int argc, char *argv[])
 {
 	t_file	*file;
 	t_map	*map;
-	t_texture texture_list[4];
-	t_config config;
+	t_texture	texture_list[4];
+	t_config	config;
+	int		status;
+	int		i;
 
 	if (argc != 2 || !check_argv(argv))
 		return (print_error(ERR_MSG_ARGC));
+	i = 0;
+	while (i < 4)
+	{
+		texture_list[i].path = NULL;
+		i++;
+	}
+	file = NULL;
+	map = NULL;
+	status = 1;
 	file = init_file(argv[1]);
 	get_file_size(file);
 	get_file_lines(file);
 	config = init_config();
-	if (!parse_lines(file, &config))
-		return (1);
-	map = init_map(file, &config);
-	fill_map_matrix(map, &config, file);
-	init_textures(texture_list, file);	
-	print_textures(texture_list);
-	return (0);
+	if (parse_lines(file, &config))
+	{
+		map = init_map(file, &config);
+		fill_map_matrix(map, &config, file);
+		if (validate_map_size(map) && validate_player(map)
+			&& validate_map_enclosure(map))
+		{
+			init_textures(texture_list, file);
+			print_textures(texture_list);
+			status = 0;
+		}
+	}
+	free_texture_list(texture_list);
+	free_map_data(map);
+	free_file_attributes(file);
+	return (status);
 }
