@@ -460,7 +460,7 @@ int	parse_lines(t_file *file, t_config *config)
 		}
 	}
 	if (!config_is_complete(config))
-		return (print_debug("missing config elements at EOF", config->count, NULL) & 0);
+		return (print_debug("missing config elements: valid config lines:", config->count, NULL) & 0);
 	if (config->map_height == 0)
 		return (print_debug("missing map block", -1, NULL) & 0);
 	return (1);
@@ -651,7 +651,7 @@ char	**get_rgbs(char *color_value)
 	}
 	if (i != 3)
 	{
-		printf("error: rgb format, i:%d\n", i);
+		printf("error: don't have exactly 3 colors; i:%d\n", i);
 		return (NULL);
 	}
 	return (rgb);
@@ -951,16 +951,10 @@ int	check_valid_fd(char *file_path)
 
 int	check_texture_path(char *path)
 {
-	struct stat	path_stat;
-
 	if (!path || path[0] == '\0')
 		return (print_debug("missing texture path", -1, NULL) & 0);
 	if (!check_file_extension(path, ".xpm"))
 		return (print_debug("texture is not .xpm", -1, path) & 0);
-	if (stat(path, &path_stat) == -1)
-		return (print_debug("texture path stat failed", -1, path) & 0);
-	if (S_ISDIR(path_stat.st_mode))
-		return (print_debug("texture path is a directory", -1, path) & 0);
 	if (!check_valid_fd(path))
 		return (0);
 	return (1);
