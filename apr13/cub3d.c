@@ -7,8 +7,6 @@
 #include <fcntl.h>
 
 #define ERR_MSG_ARGC "usage: ./<cub3D> <path/to/map.cub>"
-#define DEBUG_MODE 1
-
 enum e_state 
 {
 	CONFIG,
@@ -127,31 +125,37 @@ void	free_file_attributes(t_file *file); // the caller that's gonna call every f
 //int	check_color_attributes(t_file *file, t_color *floor, t_color *ceil);
 int	parse_color(t_file *file, char *cur_line, t_config *config);
 
-int	print_debug(char *err_msg, int n, char *s)
+int	parser_error(char *msg)
 {
-	if (DEBUG_MODE == 1)
-	{
-		if (s != NULL && n != -1)
-		{
-			printf("%s", err_msg);
-			printf("%d", n);
-			printf("%s", s);
-			return 0;
-		}
-		if (n != -1)
-		{
-			printf("%s[%d]\n", err_msg, n);
-			return 0;
-		}
-		if (n == -1 && s != NULL)
-		{
-			printf("%s %s\n", err_msg, s);
-			return 0;
-		}
-		else
-			printf("%s\n", err_msg);
-	}
-	return 0;
+	ft_putstr_fd(msg, 2);
+	ft_putchar_fd('\n', 2);
+	return (0);
+}
+
+int	parser_error_str(char *msg, char *value)
+{
+	ft_putstr_fd(msg, 2);
+	if (value)
+		ft_putstr_fd(value, 2);
+	ft_putchar_fd('\n', 2);
+	return (0);
+}
+
+int	parser_error_char(char *msg, char value)
+{
+	ft_putstr_fd(msg, 2);
+	ft_putchar_fd(value, 2);
+	ft_putchar_fd('\n', 2);
+	return (0);
+}
+
+int	parser_error_count(char *msg, int n)
+{
+	ft_putstr_fd(msg, 2);
+	ft_putchar_fd('[', 2);
+	ft_putnbr_fd(n, 2);
+	ft_putstr_fd("]\n", 2);
+	return (0);
 }
 
 void	free_data(void *data)
@@ -178,12 +182,12 @@ int	check_file_extension(char *filename, char extension[4])
 	i = 0;
 
 	if (len <= ext_len)
-		return (print_debug("file name has to be at least 1 char long + extension chars", (int)len, NULL) & 0);
+		return (parser_error("file name is too short for the required extension") & 0);
 	while (filename[i])
 		i++;
 	if (filename[i-1] != extension[3] || filename[i-2] != extension[2] || 
 		filename[i-3] != extension[1] || filename[i-4] != extension[0])
-		return (print_debug("wrong extension\n", -1, filename) & 0);
+		return (parser_error_str("wrong extension: ", filename) & 0);
 	return (1);
 }
 
@@ -199,14 +203,13 @@ int	try_open_file(char *file)
 {
 	int	fd;
 
-	fd = 0;
 	fd = open(file, O_RDONLY);
 	if (fd == -1)
 	{
-		printf("invalid file\n");
-		return 0;
+		parser_error_str("invalid file: ", file);
+		return (-1);
 	}
-	return fd;
+	return (fd);
 }
 
 t_file	*init_file(char *argv_one)
@@ -326,17 +329,17 @@ int	register_color_id(t_config *config, char color_id)
 	if (color_id == 'F')
 	{
 		if (config->has_floor)
-			return (print_debug("duplicate floor color", -1, NULL) & 0);
+			return (parser_error("duplicate floor color") & 0);
 		config->has_floor = 1;
 	}
 	else if (color_id == 'C')
 	{
 		if (config->has_ceiling)
-			return (print_debug("duplicate ceiling color", -1, NULL) & 0);
+			return (parser_error("duplicate ceiling color") & 0);
 		config->has_ceiling = 1;
 	}
 	else
-		return (print_debug("invalid color id", -1, NULL) & 0);
+		return (parser_error("invalid color id") & 0);
 	config->color_count++;
 	config->count++;
 	return (1);
@@ -347,29 +350,29 @@ int	register_texture_id(t_config *config, char texture_id[3])
 	if (ft_strncmp(texture_id, "NO", 2) == 0)
 	{
 		if (config->has_north)
-			return (print_debug("duplicate north texture", -1, NULL) & 0);
+			return (parser_error("duplicate north texture") & 0);
 		config->has_north = 1;
 	}
 	else if (ft_strncmp(texture_id, "SO", 2) == 0)
 	{
 		if (config->has_south)
-			return (print_debug("duplicate south texture", -1, NULL) & 0);
+			return (parser_error("duplicate south texture") & 0);
 		config->has_south = 1;
 	}
 	else if (ft_strncmp(texture_id, "EA", 2) == 0)
 	{
 		if (config->has_east)
-			return (print_debug("duplicate east texture", -1, NULL) & 0);
+			return (parser_error("duplicate east texture") & 0);
 		config->has_east = 1;
 	}
 	else if (ft_strncmp(texture_id, "WE", 2) == 0)
 	{
 		if (config->has_west)
-			return (print_debug("duplicate west texture", -1, NULL) & 0);
+			return (parser_error("duplicate west texture") & 0);
 		config->has_west = 1;
 	}
 	else
-		return (print_debug("invalid texture id", -1, NULL) & 0);
+		return (parser_error("invalid texture id") & 0);
 	config->text_count++;
 	config->count++;
 	return (1);
@@ -435,10 +438,10 @@ int	parse_lines(t_file *file, t_config *config)
 					free(texture.path);
 					i++;
 					continue;
-				}
+			}
 			if (!config_is_complete(config))
-				return (print_debug("map started before 6 config elements",
-						config->count, NULL) & 0);
+				return (parser_error_count("map started before 6 config elements",
+						config->count) & 0);
 			file_state = IN_MAP;
 			config->map_start = i;
 		}
@@ -460,9 +463,9 @@ int	parse_lines(t_file *file, t_config *config)
 		}
 	}
 	if (!config_is_complete(config))
-		return (print_debug("missing config elements: valid config lines:", config->count, NULL) & 0);
+		return (parser_error_count("missing config elements: valid config lines", config->count) & 0);
 	if (config->map_height == 0)
-		return (print_debug("missing map block", -1, NULL) & 0);
+		return (parser_error("missing map block") & 0);
 	return (1);
 }
 
@@ -476,12 +479,14 @@ t_texture	create_texture(char id[3], char *path)
 	return (texture);
 }
 
-void	get_file_size(t_file *file)
+int	get_file_size(t_file *file)
 {
 	int	i;
 	int	j;
 
 	file->fd = try_open_file(file->name);
+	if (file->fd == -1)
+		return (0);
 	i = 0;
 	file->max_width = 0;
 	while (1)
@@ -500,14 +505,17 @@ void	get_file_size(t_file *file)
 	file->height = i;
 	file->size = i * file->max_width;
 	close(file->fd);
+	return (1);
 }
 
-void	get_file_lines(t_file *file)
+int	get_file_lines(t_file *file)
 {
 	int	i;
 
 	file->lines = ft_calloc(file->height + 1, sizeof(char *));
 	file->fd = try_open_file(file->name);
+	if (file->fd == -1)
+		return (0);
 	i = 0;
 	while (1)
 	{
@@ -519,6 +527,7 @@ void	get_file_lines(t_file *file)
 		i++;
 	}
 	close(file->fd);
+	return (1);
 }
 
 void	print_file_lines(t_file *file)
@@ -561,26 +570,26 @@ int	check_color_line(char *color_line, char color_id)
 	int	i;
 
 	if (!color_line)
-		return (printf("error: missing color_line\n") & 0);
+		return (parser_error("missing color line") & 0);
 	if (color_line[0] != color_id)
-		return (printf("error: wrong color id\n") & 0);
+		return (parser_error("wrong color id") & 0);
 	i = 1;
 	if (color_line[i] != ' ')
-		return (printf("error: missing space after color id\n") & 0);
+		return (parser_error("missing space after color id") & 0);
 	while (color_line[i] == ' ')
 		i++;
 	if (!color_line[i])
-		return (printf("error: missing color value\n") & 0);
+		return (parser_error("missing color value") & 0);
 	while (color_line[i] && color_line[i] != ' ' && color_line[i] != '\n')
 	{
 		if (!ft_strchr("0123456789,", color_line[i]))
-			return (printf("error: invalid char in color value:%c\n",color_line[i]) & 0);
+			return (parser_error_char("invalid char in color value: ", color_line[i]) & 0);
 		i++;
 	}
 	while (color_line[i] == ' ')
 		i++;
 	if (color_line[i] != '\0' && color_line[i] != '\n')
-		return (printf("error: invalid trailing chars in color line\n") & 0);
+		return (parser_error("invalid trailing chars in color line") & 0);
 	return (1);
 }
 		/* END OF COLOR LINE*/
@@ -622,7 +631,7 @@ int	check_color_value(char *color_value)
 		i++;
 	}
 	if (commas != 2)
-		return (printf("error rgb commas count\n") & 0);
+		return (parser_error("invalid RGB comma count") & 0);
 	return (1);
 }
 	/* END OF COLOR ATTRIBUTE[1] */
@@ -635,25 +644,18 @@ char	**get_rgbs(char *color_value)
 
 	i = 0;
 	rgb = ft_split(color_value, ',');
+	if (!rgb)
+		return (NULL);
 	while (rgb[i])
 	{
 		if (rgb[i][0] == '\0')
-		{
-			printf("error: rgb format\n");
-			return (NULL);
-		}
+			return (parser_error("invalid RGB format"), NULL);
 		if (ft_strlen(rgb[i]) > 3)
-		{
-			printf("error: rgb format\n");
-			return (NULL);
-		}
+			return (parser_error("invalid RGB format"), NULL);
 		i++;
 	}
 	if (i != 3)
-	{
-		printf("error: don't have exactly 3 colors; i:%d\n", i);
-		return (NULL);
-	}
+		return (parser_error_count("wrong RGB component count", i), NULL);
 	return (rgb);
 }
 
@@ -750,14 +752,14 @@ int	check_color(char *cur_line, char color_id)
 	char	*color_value;
 
 	if (!check_color_line(cur_line, color_id))
-		return (printf("Error in color line\n") & 0);
+		return (0);
 	color_value = get_color_value(cur_line, color_id);
 	if (!color_value)
-		return (printf("Error extracting color value\n") & 0);
+		return (parser_error("failed to extract color value") & 0);
 	if (!check_color_value(color_value))
-		return (free(color_value), printf("Error in color value\n") & 0);
+		return (free(color_value), 0);
 	if (!check_rgbs(color_id, color_value))
-		return (free(color_value), printf("Error in RGB value\n") & 0);
+		return (free(color_value), 0);
 	free(color_value);
 	return (1);
 }
@@ -812,10 +814,7 @@ int	parse_color(t_file *file, char *cur_line, t_config *config)
 	else if (color_id == 'F')
 		store_color_attributes(cur_line, &config->floor, 'F');
 	else
-	{
-		printf("Error color id\n");
-		return (0);
-	}
+		return (parser_error("invalid color id") & 0);
 	return (1);
 }
 
@@ -849,28 +848,28 @@ char *identify_texture_line(char **lines, char *id)
 	return (NULL);
 }
 
-int check_texture_line(char *line, char *id)
+int	check_texture_line(char *line, char *id)
 {
-	int i;
-       
+	int	i;
+
 	i = 0;
 	if (!line)
-		return (printf("missing texture\n") & 0);
+		return (parser_error("missing texture line") & 0);
 	if (ft_strncmp(line, id, 2) != 0)
-		return (printf("wrong texture id\n") & 0);
+		return (parser_error("wrong texture id") & 0);
 	i = 2;
 	if (line[i] != ' ')
-		return (printf("missing space\n") & 0);
+		return (parser_error("missing space after texture id") & 0);
 	while (line[i] == ' ')
 		i++;
-	if (line[i] == '\0' && line[i] == '\n')	
-		return (printf("wrong char\n") & 0);
+	if (line[i] == '\0' || line[i] == '\n')
+		return (parser_error("missing texture path") & 0);
 	while (line[i] && line[i] != '\n' && line[i] != ' ')
 		i++;
 	while (line[i] == ' ')
 		i++;
 	if (line[i] != '\0' && line[i] != '\n')
-		return (printf("wrong char\n") & 0);
+		return (parser_error("invalid trailing chars in texture line") & 0);
 	return (1);
 }
 
@@ -942,19 +941,20 @@ int	check_valid_fd(char *file_path)
 
 	fd = open(file_path, O_RDONLY);
 	if (fd == -1)
-	{
-		return (print_debug("could not open file:", -1, file_path) & 0);
-	}
+		return (parser_error_str("could not open file: ", file_path) & 0);
 	close(fd);
 	return (1);
 }
 
 int	check_texture_path(char *path)
 {
+	size_t	len;
+
 	if (!path || path[0] == '\0')
-		return (print_debug("missing texture path", -1, NULL) & 0);
-	if (!check_file_extension(path, ".xpm"))
-		return (print_debug("texture is not .xpm", -1, path) & 0);
+		return (parser_error("missing texture path") & 0);
+	len = ft_strlen(path);
+	if (len <= 4 || ft_strncmp(path + len - 4, ".xpm", 4) != 0)
+		return (parser_error_str("texture is not .xpm: ", path) & 0);
 	if (!check_valid_fd(path))
 		return (0);
 	return (1);
@@ -1010,7 +1010,7 @@ int	is_map_char(char c)
 	if (c == ' ' || c == '1' || c == '0')
 		return (1);	
 	else
-		return (print_debug("Error. char is not part of the map charset", -1, NULL) & 0);
+		return (parser_error("char is not part of the map charset") & 0);
 }
 
 // no empty line: no \n alone
@@ -1060,21 +1060,15 @@ int	check_map_line(char *map_line)
 
 	i = 0;
 	if (map_line[i] == '\n')
-	{
-		printf("error: find empty line in map.\n");
-		return (0);
-	}
+		return (parser_error("empty line in map") & 0);
 	while (map_line[i] && map_line[i] != '\n')
 	{
 		if (!ft_strchr(" 01NSEW", map_line[i]))
-		{
-			printf("invalid char in map\n");
-			return (0);
-		}
+			return (parser_error("invalid char in map") & 0);
 		i++;
 	}
 	if (map_line[i] == '\n' && map_line[i + 1] != '\0')
-		return (printf("invalid char after map newline\n") & 0);
+		return (parser_error("invalid char after map newline") & 0);
 	return (1);
 }
 
@@ -1095,7 +1089,7 @@ int	is_walkable_char(char c)
 int	validate_map_size(t_map *map)
 {
 	if (map->height < 3 || map->width < 3)
-		return (print_debug("map too small", -1, NULL) & 0);
+		return (parser_error("map too small") & 0);
 	return (1);
 }
 
@@ -1188,16 +1182,16 @@ int	validate_player(t_map *map)
 				map->player_x = j;
 				map->player_dir = map->matrix[i][j];
 				if (i == 0 || i == map->height - 1 || j == 0 || j == map->width - 1)
-					return (print_debug("player on map edge", -1, NULL) & 0);
+					return (parser_error("player on map edge") & 0);
 			}
 			j++;
 		}
 		i++;
 	}
 	if (player_count == 0)
-		return (print_debug("missing player", -1, NULL) & 0);
+		return (parser_error("missing player") & 0);
 	if (player_count > 1)
-		return (print_debug("multiple players", player_count, NULL) & 0);
+		return (parser_error_count("multiple players", player_count) & 0);
 	return (1);
 }
 
@@ -1233,11 +1227,11 @@ int	validate_map_enclosure(t_map *map)
 
 	visited = ft_calloc(map->height * map->width, sizeof(char));
 	if (!visited)
-		return (print_debug("visited alloc failed", -1, NULL) & 0);
+		return (parser_error("visited alloc failed") & 0);
 	is_closed = flood_fill_player_area(map, visited, map->player_y, map->player_x);
 	free(visited);
 	if (!is_closed)
-		return (print_debug("player area open to void", -1, NULL) & 0);
+		return (parser_error("player area open to void") & 0);
 	return (1);
 }
 
@@ -1396,8 +1390,10 @@ int main(int argc, char *argv[])
 	int		status;
 	int		i;
 
-	if (argc != 2 || !check_argv(argv))
+	if (argc != 2)
 		return (print_error(ERR_MSG_ARGC));
+	if (!check_argv(argv))
+		return (1);
 	i = 0;
 	while (i < 4)
 	{
@@ -1408,10 +1404,8 @@ int main(int argc, char *argv[])
 	map = NULL;
 	status = 1;
 	file = init_file(argv[1]);
-	get_file_size(file);
-	get_file_lines(file);
 	config = init_config();
-	if (parse_lines(file, &config))
+	if (get_file_size(file) && get_file_lines(file) && parse_lines(file, &config))
 	{
 		map = init_map(file, &config);
 		fill_map_matrix(map, &config, file);
