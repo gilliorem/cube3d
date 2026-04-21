@@ -169,14 +169,16 @@ int	print_error(char *msg)
 
 int	check_file_extension(char *filename, char extension[4])
 {
-	int	len; 
+	size_t	len;
+	size_t	ext_len;
 	int	i;
 
 	len = ft_strlen(filename);
+	ext_len = ft_strlen(extension);
 	i = 0;
 
-	if (len <= ft_strlen(extension))
-		return (print_debug("file name has to be at least 1 char long + extension chars", len, NULL) & 0); 
+	if (len <= ext_len)
+		return (print_debug("file name has to be at least 1 char long + extension chars", (int)len, NULL) & 0);
 	while (filename[i])
 		i++;
 	if (filename[i-1] != extension[3] || filename[i-2] != extension[2] || 
@@ -418,7 +420,6 @@ int	parse_lines(t_file *file, t_config *config)
 					return (0);
 				if (!register_color_id(config, get_color_id(cur_line)))
 					return (0);
-				printf("color line:%s\n", cur_line);
 				i++;
 				continue;
 			}
@@ -504,14 +505,12 @@ void	get_file_size(t_file *file)
 void	get_file_lines(t_file *file)
 {
 	int	i;
-	int	j;
 
 	file->lines = ft_calloc(file->height + 1, sizeof(char *));
 	file->fd = try_open_file(file->name);
 	i = 0;
 	while (1)
 	{
-		j = 0;
 		file->cur_line = get_next_line(file->fd);
 		if (!file->cur_line)
 			break;
@@ -1163,9 +1162,6 @@ void	fill_map_matrix(t_map *map, t_config *config, t_file *file)
 	int	len;
 
 	i = config->map_start;
-	printf("lines[%d]:%s\n",i, file->lines[i]);
-	printf("file height:%d\n", file->height);
-	printf("i:%d\n", i);
 	j = 0;
 	while (j < map->height)
 	{
@@ -1173,7 +1169,6 @@ void	fill_map_matrix(t_map *map, t_config *config, t_file *file)
 		if (file->lines[i][len - 1] == '\n')
 			len--;
 		ft_memcpy(map->matrix[j], file->lines[i], len);
-		printf("%s\n", map->matrix[j]);
 		i++;
 		j++;
 	}
@@ -1430,7 +1425,6 @@ int main(int argc, char *argv[])
 			&& validate_map_enclosure(map))
 		{
 			init_textures(texture_list, file);
-			print_textures(texture_list);
 			status = 0;
 		}
 	}
