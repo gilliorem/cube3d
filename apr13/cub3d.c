@@ -22,6 +22,28 @@ enum e_line_type
     INVALID
 };
 
+typedef struct s_map_3d
+{
+	char **grid;
+	int width;
+	int height;
+
+	char *no_tex;
+	char *so_tex;
+	char *we_tex;
+	char *ea_tex;
+
+	int floor_color;
+	int ceil_color;
+
+	double player_x;
+	double player_y;
+	char player_dir;
+	//t_sprite sprites[10];
+	int num_sprites;
+} t_map_3d;
+
+
 typedef struct s_color
 {
 	char	id; 
@@ -56,7 +78,7 @@ typedef struct s_config
 	int		map_height;
 }	t_config;
 
-typedef struct s_map
+typedef struct s_map_2d
 {
 	int	width;
 	int	height;
@@ -65,13 +87,31 @@ typedef struct s_map
 	int	player_x;
 	int	player_y;
 	char	player_dir;
-}	t_map;
+}	t_map_2d;
 
 typedef struct s_scene
 {
 	t_config	config;
-	t_map		map;
+	t_map_2d	map_2d;
 }	t_scene;
+
+
+typedef struct s_player
+{
+	double pos_x;
+	double pos_y;
+	double dir_x;
+	double dir_y;
+	double plane_x;
+	double plane_y;
+} t_player;
+
+typedef struct s_sprite
+{
+	double x;
+	double y;
+	double dist;
+}	t_sprite;
 
 typedef struct s_file
 {
@@ -79,9 +119,6 @@ typedef struct s_file
 	int	fd;
 	char	*cur_line;
 	char	**lines; 
-	t_color floor; // no need
-	t_color ceiling; // no need
-	t_texture textures[4]; // no need
 	int	max_width;
 	int	height;
 	int	size; // no need
@@ -99,7 +136,7 @@ typedef struct s_file
 	int	textures_fds[4];//> make this var a tmp in the check function
 	int	longest_map_line;//> make this var a tmp in the check function
 	int	map_lines;//> make this var a tmp in the check function
-	t_map	*map;//> file should not point to map
+	t_map_2d	*map_2d;//> file should not point to map
 	//char	**map;// // as it is in the file (with the '\n')
 }	t_file;
 
@@ -112,11 +149,11 @@ t_texture	process_texture_line(char *line);
 int	check_texture_path(char *path);
 int	get_rgb_component(char *color_value, int index);
 int	is_player_char(char c);
-int	validate_player(t_map *map);
+int	validate_player(t_map_2d *map_2d);
 int	is_walkable_char(char c);
-int	validate_map_size(t_map *map);
-int	flood_fill_player_area(t_map *map, char *visited, int y, int x);
-int	validate_map_enclosure(t_map *map);
+int	validate_map_size(t_map_2d *map_2d);
+int	flood_fill_player_area(t_map_2d *map_2d, char *visited, int y, int x);
+int	validate_map_enclosure(t_map_2d *map_2d);
 void	free_color_lines(char *color_lines[]);
 void	free_color_codes(int n, char *color_codes[]);
 void	free_rgbs(char **rgb[]);
@@ -1086,9 +1123,9 @@ int	is_walkable_char(char c)
 	return (0);
 }
 
-int	validate_map_size(t_map *map)
+int	validate_map_size(t_map_2d *map_2d)
 {
-	if (map->height < 3 || map->width < 3)
+	if (map_2d->height < 3 || map_2d->width < 3)
 		return (parser_error("map too small") & 0);
 	return (1);
 }
@@ -1111,39 +1148,39 @@ int	get_map_width(t_file *file, t_config *config)
 	return (max_width);
 }
 
-void	init_map_matrix(t_map *map)
+void	init_map_matrix(t_map_2d *map_2d)
 {
 	int	i;
 
 	i = 0;
-	map->matrix = (char **) ft_calloc(map->height + 1, sizeof(char *));
-	while (i < map->height)
+	map_2d->matrix = (char **) ft_calloc(map_2d->height + 1, sizeof(char *));
+	while (i < map_2d->height)
 	{
-		map->matrix[i] = (char *) ft_calloc(map->width + 1, sizeof(char));
-		ft_memset(map->matrix[i], ' ', map->width);
+		map_2d->matrix[i] = (char *) ft_calloc(map_2d->width + 1, sizeof(char));
+		ft_memset(map_2d->matrix[i], ' ', map_2d->width);
 		i++;
 	}
 	
 }
 
-t_map *init_map(t_file *file, t_config *config)
+t_map_2d *init_map(t_file *file, t_config *config)
 {
-	t_map *map;
+	t_map_2d *map_2d;
 
-	map = ft_calloc(1, sizeof(t_map));
-	map->first_line = config->map_start;
-	map->height = config->map_height;
-	map->width = get_map_width(file, config); // <
-	init_map_matrix(map);
+	map_2d = ft_calloc(1, sizeof(t_map_2d));
+	map_2d->first_line = config->map_start;
+	map_2d->height = config->map_height;
+	map_2d->width = get_map_width(file, config); // <
+	init_map_matrix(map_2d);
 	//for (int i = 0; map->matrix[i]; i++)
 	//	printf("%s\n", map->matrix[i]);
-	map->player_x = 0;
-	map->player_y = 0;
-	map->player_dir = 0;
-	return (map);		
+	map_2d->player_x = 0;
+	map_2d->player_y = 0;
+	map_2d->player_dir = 0;
+	return (map_2d);		
 }
 
-void	fill_map_matrix(t_map *map, t_config *config, t_file *file)
+void	fill_map_matrix(t_map_2d *map_2d, t_config *config, t_file *file)
 {
 	int	i;
 	int	j;
@@ -1151,18 +1188,18 @@ void	fill_map_matrix(t_map *map, t_config *config, t_file *file)
 
 	i = config->map_start;
 	j = 0;
-	while (j < map->height)
+	while (j < map_2d->height)
 	{
 		len = ft_strlen(file->lines[i]);
 		if (file->lines[i][len - 1] == '\n')
 			len--;
-		ft_memcpy(map->matrix[j], file->lines[i], len);
+		ft_memcpy(map_2d->matrix[j], file->lines[i], len);
 		i++;
 		j++;
 	}
 }
 
-int	validate_player(t_map *map)
+int	validate_player(t_map_2d *map_2d)
 {
 	int	i;
 	int	j;
@@ -1170,18 +1207,18 @@ int	validate_player(t_map *map)
 
 	i = 0;
 	player_count = 0;
-	while (i < map->height)
+	while (i < map_2d->height)
 	{
 		j = 0;
-		while (j < map->width)
+		while (j < map_2d->width)
 		{
-			if (is_player_char(map->matrix[i][j]))
+			if (is_player_char(map_2d->matrix[i][j]))
 			{
 				player_count++;
-				map->player_y = i;
-				map->player_x = j;
-				map->player_dir = map->matrix[i][j];
-				if (i == 0 || i == map->height - 1 || j == 0 || j == map->width - 1)
+				map_2d->player_y = i;
+				map_2d->player_x = j;
+				map_2d->player_dir = map_2d->matrix[i][j];
+				if (i == 0 || i == map_2d->height - 1 || j == 0 || j == map_2d->width - 1)
 					return (parser_error("player on map edge") & 0);
 			}
 			j++;
@@ -1195,40 +1232,40 @@ int	validate_player(t_map *map)
 	return (1);
 }
 
-int	flood_fill_player_area(t_map *map, char *visited, int y, int x)
+int	flood_fill_player_area(t_map_2d *map_2d, char *visited, int y, int x)
 {
 	int	index;
 
-	if (y < 0 || y >= map->height || x < 0 || x >= map->width)
+	if (y < 0 || y >= map_2d->height || x < 0 || x >= map_2d->width)
 		return (0);
-	if (map->matrix[y][x] == ' ')
+	if (map_2d->matrix[y][x] == ' ')
 		return (0);
-	if (!is_walkable_char(map->matrix[y][x]))
+	if (!is_walkable_char(map_2d->matrix[y][x]))
 		return (1);
-	index = y * map->width + x;
+	index = y * map_2d->width + x;
 	if (visited[index])
 		return (1);
 	visited[index] = 1;
-	if (!flood_fill_player_area(map, visited, y - 1, x))
+	if (!flood_fill_player_area(map_2d, visited, y - 1, x))
 		return (0);
-	if (!flood_fill_player_area(map, visited, y + 1, x))
+	if (!flood_fill_player_area(map_2d, visited, y + 1, x))
 		return (0);
-	if (!flood_fill_player_area(map, visited, y, x - 1))
+	if (!flood_fill_player_area(map_2d, visited, y, x - 1))
 		return (0);
-	if (!flood_fill_player_area(map, visited, y, x + 1))
+	if (!flood_fill_player_area(map_2d, visited, y, x + 1))
 		return (0);
 	return (1);
 }
 
-int	validate_map_enclosure(t_map *map)
+int	validate_map_enclosure(t_map_2d *map_2d)
 {
 	char	*visited;
 	int		is_closed;
 
-	visited = ft_calloc(map->height * map->width, sizeof(char));
+	visited = ft_calloc(map_2d->height * map_2d->width, sizeof(char));
 	if (!visited)
 		return (parser_error("visited alloc failed") & 0);
-	is_closed = flood_fill_player_area(map, visited, map->player_y, map->player_x);
+	is_closed = flood_fill_player_area(map_2d, visited, map_2d->player_y, map_2d->player_x);
 	free(visited);
 	if (!is_closed)
 		return (parser_error("player area open to void") & 0);
@@ -1340,23 +1377,23 @@ void	free_texture_names(char *texture_names[])
 	}
 }
 
-void	free_map_data(t_map *map)
+void	free_map_data(t_map_2d *map_2d)
 {
 	int	i;
 
-	if (!map)
+	if (!map_2d)
 		return ;
-	if (map->matrix)
+	if (map_2d->matrix)
 	{
 		i = 0;
-		while (i < map->height)
+		while (i < map_2d->height)
 		{
-			free(map->matrix[i]);
+			free(map_2d->matrix[i]);
 			i++;
 		}
-		free(map->matrix);
+		free(map_2d->matrix);
 	}
-	free(map);
+	free(map_2d);
 }
 
 void	free_texture_list(t_texture texture_list[4])
@@ -1381,10 +1418,45 @@ void	free_file_attributes(t_file *file) // the caller that's gonna call every fr
 	free(file);
 }
 
+int	rgb_to_hex(int rgb[3])	
+{
+	int	hex;
+
+	hex = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2];
+
+	return hex;
+}
+
+
+t_map_3d	*init_map_3d(t_map_2d *map_2d, t_config *config, t_texture texture_list[4])
+{
+	t_map_3d	*map_3d;
+
+	map_3d = ft_calloc(1, sizeof(t_map_3d));
+	map_3d->grid = map_2d->matrix;
+	map_3d->width = map_2d->width;
+	map_3d->height = map_2d->height;
+	map_3d->no_tex = texture_list[0].path;
+	map_3d->so_tex = texture_list[1].path;
+	map_3d->we_tex = texture_list[2].path;
+	map_3d->ea_tex = texture_list[3].path;
+
+	map_3d->floor_color = rgb_to_hex(config->floor.rgb);
+	map_3d->ceil_color = rgb_to_hex(config->ceiling.rgb);
+
+	map_3d->player_x = (double)map_2d->player_x;
+	map_3d->player_y = (double)map_2d->player_x;
+	map_3d->player_dir = map_2d->player_dir;
+
+	return (map_3d);
+}
+
+
 int main(int argc, char *argv[])
 {
 	t_file	*file;
-	t_map	*map;
+	t_map_2d	*map_2d;
+	t_map_3d	*map_3d;
 	t_texture	texture_list[4];
 	t_config	config;
 	int		status;
@@ -1401,23 +1473,25 @@ int main(int argc, char *argv[])
 		i++;
 	}
 	file = NULL;
-	map = NULL;
+	map_2d = NULL;
 	status = 1;
 	file = init_file(argv[1]);
 	config = init_config();
 	if (get_file_size(file) && get_file_lines(file) && parse_lines(file, &config))
 	{
-		map = init_map(file, &config);
-		fill_map_matrix(map, &config, file);
-		if (validate_map_size(map) && validate_player(map)
-			&& validate_map_enclosure(map))
+		map_2d = init_map(file, &config);
+		fill_map_matrix(map_2d, &config, file);
+		if (validate_map_size(map_2d) && validate_player(map_2d)
+			&& validate_map_enclosure(map_2d))
 		{
 			init_textures(texture_list, file);
 			status = 0;
 		}
 	}
+	map_3d = init_map_3d(map_2d, &config, texture_list);
 	free_texture_list(texture_list);
-	free_map_data(map);
+	free_map_data(map_2d);
+	free(map_3d);
 	free_file_attributes(file);
 	return (status);
 }
