@@ -1301,6 +1301,7 @@ int main(int argc, char *argv[])
 	}
 	file = NULL;
 	map_2d = NULL;
+	map_3d = NULL;
 	status = 1;
 	file = init_file(argv[1]);
 	config = init_config();
@@ -1312,10 +1313,10 @@ int main(int argc, char *argv[])
 			&& validate_map_enclosure(map_2d))
 		{
 			init_textures(texture_list, file);
+			map_3d = init_map_3d(map_2d, &config, texture_list);
 			status = 0;
 		}
 	}
-	map_3d = init_map_3d(map_2d, &config, texture_list);
 	free_texture_list(texture_list);
 	free_map_data(map_2d);
 	free(map_3d);
