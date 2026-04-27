@@ -137,7 +137,6 @@ int	flood_fill_player_area(t_map_2d *map_2d, char *visited, int y, int x);
 int	validate_map_enclosure(t_map_2d *map_2d);
 void	free_color_lines(char *color_lines[]);
 void	free_color_codes(int n, char *color_codes[]);
-void	free_rgbs(char **rgb[]);
 void	free_file_attributes(t_file *file); // the caller that's gonna call every free func
 int	parse_color(t_file *file, char *cur_line, t_config *config);
 
@@ -1177,27 +1176,6 @@ void	free_color_codes(int n, char *color_codes[])
 	}
 }
 
-void	free_rgbs(char **rgb[])
-{
-	int	i;
-	int	j;
-
-	if (!rgb || !rgb[0] || !rgb[0][0])
-		return ;
-	i = 0;
-	while (i < 2)
-	{
-		j = 0;
-		while (j < 3)
-		{
-			free(rgb[i][j]);
-			j++;
-		}
-		free(rgb[i]);
-		i++;
-	}
-}
-
 void	free_texture_lines(char *texture_lines[])
 {
 	int	i;
@@ -1212,20 +1190,6 @@ void	free_texture_lines(char *texture_lines[])
 	}
 }
 
-void	free_texture_paths(char *texture_paths[])
-{
-	int	i;
-
-	if (!texture_paths || !texture_paths[0])
-		return ;
-	i = 0;
-	while (i < 4)
-	{
-		free(texture_paths[i]);
-		i++;
-	}
-}
-	
 void	free_texture_names(char *texture_names[])
 {
 	int	i;
@@ -1308,7 +1272,7 @@ t_map_3d	*init_map_3d(t_map_2d *map_2d, t_config *config, t_texture texture_list
 	map_3d->ceil_color = rgb_to_hex(config->ceiling.rgb);
 
 	map_3d->player_x = (double)map_2d->player_x;
-	map_3d->player_y = (double)map_2d->player_x;
+	map_3d->player_y = (double)map_2d->player_y;
 	map_3d->player_dir = map_2d->player_dir;
 
 	return (map_3d);
