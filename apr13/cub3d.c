@@ -93,8 +93,8 @@ typedef struct s_scene
 {
 	t_config	config;
 	t_map_2d	map_2d;
+	t_map_3d	map_3d;
 }	t_scene;
-
 
 typedef struct s_player
 {
@@ -119,27 +119,8 @@ typedef struct s_file
 	int	fd;
 	char	*cur_line;
 	char	**lines; 
-	int	max_width;
-	int	height;
-	int	size; // no need
-
-	//TODO: re-structure the file attributes
-	int	line_count_color;// > make this var a tmp in the check function
-	int	n_color_lines;// > make this var a tmp in the check function
-	char	*color_lines[2];//> make this var a tmp in the check function
-	char 	*color_codes[2];//> make this var a tmp in the check function
-	char	**rgb[2];//> make this var a tmp in the check function
-	int	line_count_texture;//> make this var a tmp in the check function
-	char	*texture_lines[4];//> make this var a tmp in the check function
-	char	*texture_paths[4];//> make this var a tmp in the check function
-	char	*texture_names[4];//> make this var a tmp in the check function
-	int	textures_fds[4];//> make this var a tmp in the check function
-	int	longest_map_line;//> make this var a tmp in the check function
-	int	map_lines;//> make this var a tmp in the check function
-	t_map_2d	*map_2d;//> file should not point to map
-	//char	**map;// // as it is in the file (with the '\n')
+	int	line_count;
 }	t_file;
-
 
 char	*get_color_value(char *color_line, char color_id);
 char	get_color_id(char *line);
@@ -158,8 +139,6 @@ void	free_color_lines(char *color_lines[]);
 void	free_color_codes(int n, char *color_codes[]);
 void	free_rgbs(char **rgb[]);
 void	free_file_attributes(t_file *file); // the caller that's gonna call every free func
-
-//int	check_color_attributes(t_file *file, t_color *floor, t_color *ceil);
 int	parse_color(t_file *file, char *cur_line, t_config *config);
 
 int	parser_error(char *msg)
@@ -255,11 +234,8 @@ t_file	*init_file(char *argv_one)
 
 	file = ft_calloc(1, sizeof(t_file));
 	file->name = ft_strdup(argv_one);
-	file->n_color_lines = 2;
-	file->max_width = 0;
-	file->height = 0;
+	file->line_count = 0;
 	
-	//printf("file init\n");
 	return file;
 }
 
@@ -285,7 +261,6 @@ t_color init_ceiling(void)
 	return (ceiling);
 }
 
-// should this fn returns a pointer to config instead ?
 t_config	init_config()
 {
 	t_config	config;
@@ -424,13 +399,6 @@ char	*skip_leading_spaces(char *line)
 	return (line);
 }
 
-// I need to have 6 config lines
-// 	2 color
-// 	4 textures
-// 	config->count => color_count+text_count
-// 	config->color_count 
-// 	config->text_count
-
 int	parse_lines(t_file *file, t_config *config)
 {
 	enum	e_state file_state;
@@ -463,18 +431,18 @@ int	parse_lines(t_file *file, t_config *config)
 				i++;
 				continue;
 			}
-				if (line_type == TEXTURE)
-				{
-					ft_memcpy(texture_id, cur_line, 2);
-					texture_id[2] = '\0';
-					if (!register_texture_id(config, texture_id))
-						return (0);
-					texture = process_texture_line(cur_line);
-					if (!texture.path)
-						return (0);
-					free(texture.path);
-					i++;
-					continue;
+			if (line_type == TEXTURE)
+			{
+				ft_memcpy(texture_id, cur_line, 2);
+				texture_id[2] = '\0';
+				if (!register_texture_id(config, texture_id))
+					return (0);
+				texture = process_texture_line(cur_line);
+				if (!texture.path)
+					return (0);
+				free(texture.path);
+				i++;
+				continue;
 			}
 			if (!config_is_complete(config))
 				return (parser_error_count("map started before 6 config elements",
@@ -510,7 +478,6 @@ t_texture	create_texture(char id[3], char *path)
 {
 	t_texture texture;
 	ft_memcpy(texture.id, id, 3);
-	//ft_memcpy(texture.path, path, ft_strlen(path));
 	texture.path = path;
 	texture.fd = -1;
 	return (texture);
@@ -519,28 +486,20 @@ t_texture	create_texture(char id[3], char *path)
 int	get_file_size(t_file *file)
 {
 	int	i;
-	int	j;
 
 	file->fd = try_open_file(file->name);
 	if (file->fd == -1)
 		return (0);
 	i = 0;
-	file->max_width = 0;
 	while (1)
 	{
-		j = 0;
 		file->cur_line = get_next_line(file->fd);
 		if (!file->cur_line)
 			break;
-		while (file->cur_line[j])
-			j++;
 		free(file->cur_line);
 		i++;
-		if (j > file->max_width)
-			file->max_width = j;
 	}
-	file->height = i;
-	file->size = i * file->max_width;
+	file->line_count = i;
 	close(file->fd);
 	return (1);
 }
@@ -549,7 +508,7 @@ int	get_file_lines(t_file *file)
 {
 	int	i;
 
-	file->lines = ft_calloc(file->height + 1, sizeof(char *));
+	file->lines = ft_calloc(file->line_count + 1, sizeof(char *));
 	file->fd = try_open_file(file->name);
 	if (file->fd == -1)
 		return (0);
@@ -574,17 +533,6 @@ void	print_file_lines(t_file *file)
 		printf("%s", file->lines[i]);
 	}
 }
-
-// ["FC ,0123456789"]
-
-
-// switch file to line
-// in the function call, use file->lines
-
-// call identify_color_line() in this function or find a way to keep the color_line local (tmp)
-// return the checked color_line or have another funciton
-
-/* COLOR */
 
 void	trim_new_line(char *line)
 {
@@ -629,7 +577,6 @@ int	check_color_line(char *color_line, char color_id)
 		return (parser_error("invalid trailing chars in color line") & 0);
 	return (1);
 }
-		/* END OF COLOR LINE*/
 
 char	*get_color_value(char *color_line, char color_id)
 {
@@ -671,9 +618,7 @@ int	check_color_value(char *color_value)
 		return (parser_error("invalid RGB comma count") & 0);
 	return (1);
 }
-	/* END OF COLOR ATTRIBUTE[1] */
 
-	/* COLOR CODE (RGB) */
 char	**get_rgbs(char *color_value)
 {
 	int	i;
@@ -759,30 +704,6 @@ int	check_rgbs(char color_id, char *color_value)
 	
 	return (1);
 }
-	/* END OF COLOR CODE (RGB) */
-
-/*
-int	check_color_attributes(t_file *file, t_color *floor, t_color *ceil)
-{
-	char	*floor_color;
-	char	*ceiling_color;
-
-	floor_color = get_color_value(file, 'F');
-	if (!floor_color)
-		return (printf("error processing color line\n") & 0);
-	ceiling_color = get_color_value(file, 'C');
-	if (!ceiling_color)
-		return (printf("error processing color line\n") & 0);
-
-	if (!process_rgb(floor, floor_color))
-		return (0);
-	if (!process_rgb(ceil, ceiling_color))
-		return (0);
-	floor[0].id = 'F';
-	ceil[0].id = 'C';
-	return (1);
-}
-*/
 
 int	check_color(char *cur_line, char color_id)
 {
@@ -811,7 +732,6 @@ char	get_color_id(char *line)
 		return ('\0');
 }
 
-//TODO: Convert into hex code (color)
 void	store_color_attributes(char *cur_line, t_color *color, char id)
 {
 	char	*color_value;
@@ -836,8 +756,6 @@ void	store_color_attributes(char *cur_line, t_color *color, char id)
 	free(color_value);
 }
 
-// now that colors are checked, need their attributes
-// need to store in config data struct C and F
 int	parse_color(t_file *file, char *cur_line, t_config *config)
 {
 	char	color_id;
@@ -867,8 +785,6 @@ void	print_color(t_color *floor, t_color *ceil)
 	printf("%i,", ceil->rgb[1]);
 	printf("%i\n", ceil->rgb[2]);
 }
-
-/* TEXTURES */
 
 char *identify_texture_line(char **lines, char *id)
 {
@@ -964,14 +880,6 @@ void	init_textures(t_texture texture_list[4], t_file *file)
 	texture_list[3] = process_texture(file, "WE");
 }
 
-// check filename was doing:
-// if there is a `/`, jump to it
-// if not filemane is the path (str passed)
-// check extension
-// check presence of special char
-
-// check filenames: checked the filenames in the 4 xpm files
-
 int	check_valid_fd(char *file_path)
 {
 	int	fd;
@@ -1033,15 +941,6 @@ void	print_textures(t_texture texture[4])
 	}
 }
 
-// we can go through our file content line by line and check the lines:
-// it can be
-// - empty line
-// - config line
-// 	- color
-// 	- texture
-// - map line (0 1NSEW)
-
-
 int	is_map_char(char c)
 {
 	if (c == ' ' || c == '1' || c == '0')
@@ -1049,40 +948,6 @@ int	is_map_char(char c)
 	else
 		return (parser_error("char is not part of the map charset") & 0);
 }
-
-// no empty line: no \n alone
-// can have \n after map char
-// do I want to trim the new line ?
-// 	first identify
-// 	validate
-// 	parse
-
-// should this function return void instead ?
-/*
-char	*identify_map_line(char *line, char map_id)
-{
-	int	i;
-
-	i = 0;
-	if (line[i] == '\n')
-	{
-		printf("error: find empty line in map line\n");
-		return (NULL);
-	}
-	if (ft_strchr(line, '\n'))
-		trim_new_line(line);
-	while (line[i])
-	{
-		if (!ft_strchr(" 01NSEW", line[i]))
-		{
-			printf("invalid char in map\n");
-			return (NULL);
-		}
-		i++;
-	}
-	return (line);
-}
-*/
 
 char	*identify_map_line(char *line)
 {
@@ -1172,8 +1037,6 @@ t_map_2d *init_map(t_file *file, t_config *config)
 	map_2d->height = config->map_height;
 	map_2d->width = get_map_width(file, config); // <
 	init_map_matrix(map_2d);
-	//for (int i = 0; map->matrix[i]; i++)
-	//	printf("%s\n", map->matrix[i]);
 	map_2d->player_x = 0;
 	map_2d->player_y = 0;
 	map_2d->player_dir = 0;
