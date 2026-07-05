@@ -1,3 +1,15 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   cub3d.h                                            :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: regillio <marvin@42.fr>                    +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2026/06/26 22:48:49 by regillio          #+#    #+#             */
+/*   Updated: 2026/06/26 22:48:50 by regillio         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #ifndef CUB3D_H
 # define CUB3D_H
 
@@ -29,25 +41,6 @@
 # define EV_KEY_RELEASE	3
 # define EV_DESTROY	17
 
-
-#ifdef __APPLE__
-
-# define EV_KEY_PRESS    2
-# define EV_KEY_RELEASE  3
-# define EV_DESTROY      17
-
-# define KEY_W           13
-# define KEY_A           0
-# define KEY_S           1
-# define KEY_D           2
-# define KEY_UP          126
-# define KEY_DOWN        125
-# define KEY_LEFT        123
-# define KEY_RIGHT       124
-# define KEY_ESC         53
-
-#else
-
 /* X11 key codes (Linux)  */
 
 # define KEY_W		119
@@ -60,7 +53,6 @@
 # define KEY_RIGHT	65363
 # define KEY_ESC	65307
 
-#endif
 /* Movement constants  */
 
 # define MOVE_SPEED	0.08
