@@ -54,8 +54,6 @@ If the argument is missing or invalid, the program exits with an error message.
 
 - `W` / `Up`: move forward
 - `S` / `Down`: move backward
-- `A`: strafe left
-- `D`: strafe right
 - `Left` / `Right`: rotate camera
 - Mouse movement: rotate camera
 - `Esc` or window close button: quit
