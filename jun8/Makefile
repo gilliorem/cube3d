@@ -49,7 +49,6 @@ SRCS		= $(SRC_DIR)/main.c \
 			  $(SRC_DIR)/render.c \
 			  $(SRC_DIR)/hooks.c \
 			  $(SRC_DIR)/hooks_mouse.c \
-			  $(SRC_DIR)/hooks_debug.c \
 			  $(SRC_DIR)/minimap.c \
 			  $(SRC_DIR)/movement.c \
 			  $(SRC_DIR)/player_rotation.c
